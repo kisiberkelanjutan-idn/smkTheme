@@ -1194,9 +1194,16 @@
                 if (subjectVal) addSubjectCandidate(subjectVal.textContent);
             }
 
+            var hasEditorCandidateTag = subjectCandidateTags.some(function (t) {
+                if (/(?:\bsdg|\bsdgs|\bgoal\s*\d|\btarget\s*\d)/i.test(t)) return false;
+                var cleanTag = t.replace(/^(?:review\s*editors?|editors?|reviewers?)\s*:\s*/i, "").trim();
+                return cleanTag.length >= 3;
+            });
+
             var editorialTeamUrl = sanitizeUrl(urls.editorialTeam, "");
-            if (editorialTeamUrl && editorialTeamUrl !== "#" && subjectCandidateTags.length > 0) {
-                var cacheKeyTeam = "kisi_card_editor_v8";
+            if (editorialTeamUrl && editorialTeamUrl !== "#" && hasEditorCandidateTag) {
+                var cacheKeyTeam = "kisi_card_editor_v9";
+                var teamCacheTtlMs = 3600000;
                 function getCorePersonName(str) {
                     var base = (str || "").replace(/^(?:review\s*editors?|editors?|reviewers?)\s*:\s*/i, "").trim();
                     return base.split(",")[0].trim().toLowerCase().replace(/^(prof|dr|drg|ir|hj|h|ns|ners)\.?\s+/gi, "").replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
@@ -1212,14 +1219,32 @@
                     }
                     return false;
                 }
+                function readCachedDirectory() {
+                    var storages = [window.localStorage, window.sessionStorage];
+                    for (var sIdx = 0; sIdx < storages.length; sIdx++) {
+                        try {
+                            var store = storages[sIdx];
+                            if (!store) continue;
+                            var raw = store.getItem(cacheKeyTeam);
+                            if (!raw) continue;
+                            var entry = JSON.parse(raw);
+                            if (entry && Array.isArray(entry.dir) && typeof entry.ts === "number" && (Date.now() - entry.ts) < teamCacheTtlMs) {
+                                return entry.dir;
+                            }
+                        } catch (e) {}
+                    }
+                    return null;
+                }
+                function writeCachedDirectory(dir) {
+                    var payload = JSON.stringify({ ts: Date.now(), dir: dir });
+                    try { if (window.localStorage) window.localStorage.setItem(cacheKeyTeam, payload); } catch (e) {}
+                    try { if (window.sessionStorage) window.sessionStorage.setItem(cacheKeyTeam, payload); } catch (e) {}
+                }
                 function loadDirectory() {
-                    try {
-                        var cached = sessionStorage.getItem(cacheKeyTeam);
-                        if (cached) {
-                            var parsed = JSON.parse(cached);
-                            if (Array.isArray(parsed) && parsed.length > 0) return Promise.resolve(parsed);
-                        }
-                    } catch (e) {}
+                    var cachedDir = readCachedDirectory();
+                    if (cachedDir !== null) {
+                        return Promise.resolve(cachedDir);
+                    }
                     return fetch(editorialTeamUrl, { credentials: "same-origin" })
                         .then(function (r) { return r.text(); })
                         .then(function (html) {
@@ -1241,9 +1266,7 @@
                                     });
                                 }
                             });
-                            if (dir.length > 0) {
-                                try { sessionStorage.setItem(cacheKeyTeam, JSON.stringify(dir)); } catch (e) {}
-                            }
+                            writeCachedDirectory(dir);
                             return dir;
                         })
                         .catch(function () { return []; });
@@ -1410,12 +1433,29 @@
                     fetchTargetUrl = xmlGalleyUrl.replace(/\/+$/, "") + "/" + xmlGalleyMeta.fileId;
                 }
 
-                fetch(fetchTargetUrl, { credentials: "same-origin" })
-                    .then(function (res) {
-                        if (!res.ok && xmlGalleyMeta) return fetch(xmlGalleyUrl, { credentials: "same-origin" });
-                        return res;
-                    })
-                    .then(function (res) { return res.text(); })
+                var xmlCacheKey = "kisi_xml_v1_" + fetchTargetUrl;
+                var xmlPromise = null;
+                try {
+                    var cachedXml = window.sessionStorage ? window.sessionStorage.getItem(xmlCacheKey) : null;
+                    if (cachedXml) xmlPromise = Promise.resolve(cachedXml);
+                } catch (e) {}
+
+                if (!xmlPromise) {
+                    xmlPromise = fetch(fetchTargetUrl, { credentials: "same-origin" })
+                        .then(function (res) {
+                            if (!res.ok && xmlGalleyMeta) return fetch(xmlGalleyUrl, { credentials: "same-origin" });
+                            return res;
+                        })
+                        .then(function (res) { return res.text(); })
+                        .then(function (xmlStr) {
+                            if (xmlStr && xmlStr.length < 450000 && xmlStr.indexOf("<article") !== -1) {
+                                try { if (window.sessionStorage) window.sessionStorage.setItem(xmlCacheKey, xmlStr); } catch (e) {}
+                            }
+                            return xmlStr;
+                        });
+                }
+
+                xmlPromise
                     .then(function (xmlStr) {
                         var xmlDoc = new DOMParser().parseFromString(xmlStr, "text/xml");
                         var xmlTitleEl = xmlDoc.querySelector("article-meta article-title, title-group article-title");
@@ -1562,89 +1602,115 @@
             articleDetails.appendChild(centerMain);
             articleDetails.appendChild(rightRail);
 
-            (function syncMetricsFromIssueToc(targetUrls, slugs, baseViews, baseDownloads) {
-                if (!targetUrls.length || !slugs.length || typeof window.fetch !== "function") return;
-                var candidates = targetUrls.filter(function (u) {
-                    try {
-                        return new URL(u, window.location.origin).origin === window.location.origin;
-                    } catch (e) {
-                        return false;
-                    }
-                });
-                if (!candidates.length) return;
+            if (initialViews === 0 && initialDownloads === 0) {
+                (function syncMetricsFromIssueToc(targetUrls, slugs, baseViews, baseDownloads) {
+                    if (!targetUrls.length || !slugs.length || typeof window.fetch !== "function") return;
+                    var candidates = targetUrls.filter(function (u) {
+                        try {
+                            return new URL(u, window.location.origin).origin === window.location.origin;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+                    if (!candidates.length) return;
 
-                function tryFetchAt(idx) {
-                    if (idx >= candidates.length) return;
-                    fetch(new URL(candidates[idx], window.location.origin).toString(), { credentials: "same-origin" })
-                        .then(function (resp) {
-                            if (!resp.ok) throw new Error("HTTP " + resp.status);
-                            return resp.text();
-                        })
-                        .then(function (html) {
-                            if (!html || typeof DOMParser === "undefined") {
-                                tryFetchAt(idx + 1);
-                                return;
+                    function tryFetchAt(idx) {
+                        if (idx >= candidates.length) return;
+                        var candidateAbs = new URL(candidates[idx], window.location.origin).toString();
+                        var issueHtmlPromise = null;
+                        var cacheKeyToc = "kisi_issue_toc_html_v1_" + candidateAbs;
+                        try {
+                            var cachedEntry = window.sessionStorage ? JSON.parse(window.sessionStorage.getItem(cacheKeyToc) || "null") : null;
+                            if (cachedEntry && cachedEntry.html && typeof cachedEntry.ts === "number" && (Date.now() - cachedEntry.ts) < 600000) {
+                                issueHtmlPromise = Promise.resolve(cachedEntry.html);
                             }
-                            var doc = new DOMParser().parseFromString(html, "text/html");
-                            var syncedViews = baseViews;
-                            var syncedDownloads = baseDownloads;
-                            var matchedCard = false;
+                        } catch (e) {}
 
-                            var dataNode = doc.getElementById("kisi-theme-data");
-                            var subMap = null;
-                            if (dataNode && dataNode.textContent) {
-                                try {
-                                    var parsedData = JSON.parse(dataNode.textContent);
-                                    if (parsedData && parsedData.submissionMetrics && typeof parsedData.submissionMetrics === "object") {
-                                        subMap = parsedData.submissionMetrics;
+                        if (!issueHtmlPromise) {
+                            issueHtmlPromise = fetch(candidateAbs, { credentials: "same-origin" })
+                                .then(function (resp) {
+                                    if (!resp.ok) throw new Error("HTTP " + resp.status);
+                                    return resp.text();
+                                })
+                                .then(function (html) {
+                                    if (html && html.length < 350000) {
+                                        try {
+                                            if (window.sessionStorage) {
+                                                window.sessionStorage.setItem(cacheKeyToc, JSON.stringify({ ts: Date.now(), html: html }));
+                                            }
+                                        } catch (e) {}
                                     }
-                                } catch (e) {}
-                            }
-
-                            doc.querySelectorAll(".obj_article_summary, .kisi-monthly-card, .cmp_article_list > li").forEach(function (card) {
-                                var cardSlugs = [];
-                                var isMatch = false;
-                                card.querySelectorAll('a[href*="/article/view/"]').forEach(function (a) {
-                                    var s = extractArticleSlug(a.getAttribute("href"));
-                                    if (s) {
-                                        cardSlugs.push(s);
-                                        if (slugs.indexOf(s) !== -1) isMatch = true;
-                                    }
+                                    return html;
                                 });
-                                if (!isMatch) return;
-                                matchedCard = true;
+                        }
 
-                                var cardMetrics = extractArticleMetricsFromContainer(card, true);
-                                if (cardMetrics.views > syncedViews) syncedViews = cardMetrics.views;
-                                if (cardMetrics.downloads > syncedDownloads) syncedDownloads = cardMetrics.downloads;
+                        issueHtmlPromise
+                            .then(function (html) {
+                                if (!html || typeof DOMParser === "undefined") {
+                                    tryFetchAt(idx + 1);
+                                    return;
+                                }
+                                var doc = new DOMParser().parseFromString(html, "text/html");
+                                var syncedViews = baseViews;
+                                var syncedDownloads = baseDownloads;
+                                var matchedCard = false;
 
-                                var subIdAttr = card.getAttribute("data-submission-id") || card.getAttribute("data-id") || "";
-                                if (subMap) {
-                                    slugs.concat(cardSlugs, subIdAttr ? [String(subIdAttr)] : []).forEach(function (k) {
-                                        if (k && subMap[k]) {
-                                            syncedViews = Math.max(syncedViews, parseMetricInt(subMap[k].views));
-                                            syncedDownloads = Math.max(syncedDownloads, parseMetricInt(subMap[k].downloads));
+                                var dataNode = doc.getElementById("kisi-theme-data");
+                                var subMap = null;
+                                if (dataNode && dataNode.textContent) {
+                                    try {
+                                        var parsedData = JSON.parse(dataNode.textContent);
+                                        if (parsedData && parsedData.submissionMetrics && typeof parsedData.submissionMetrics === "object") {
+                                            subMap = parsedData.submissionMetrics;
+                                        }
+                                    } catch (e) {}
+                                }
+
+                                doc.querySelectorAll(".obj_article_summary, .kisi-monthly-card, .cmp_article_list > li").forEach(function (card) {
+                                    var cardSlugs = [];
+                                    var isMatch = false;
+                                    card.querySelectorAll('a[href*="/article/view/"]').forEach(function (a) {
+                                        var s = extractArticleSlug(a.getAttribute("href"));
+                                        if (s) {
+                                            cardSlugs.push(s);
+                                            if (slugs.indexOf(s) !== -1) isMatch = true;
                                         }
                                     });
+                                    if (!isMatch) return;
+                                    matchedCard = true;
+
+                                    var cardMetrics = extractArticleMetricsFromContainer(card, true);
+                                    if (cardMetrics.views > syncedViews) syncedViews = cardMetrics.views;
+                                    if (cardMetrics.downloads > syncedDownloads) syncedDownloads = cardMetrics.downloads;
+
+                                    var subIdAttr = card.getAttribute("data-submission-id") || card.getAttribute("data-id") || "";
+                                    if (subMap) {
+                                        slugs.concat(cardSlugs, subIdAttr ? [String(subIdAttr)] : []).forEach(function (k) {
+                                            if (k && subMap[k]) {
+                                                syncedViews = Math.max(syncedViews, parseMetricInt(subMap[k].views));
+                                                syncedDownloads = Math.max(syncedDownloads, parseMetricInt(subMap[k].downloads));
+                                            }
+                                        });
+                                    }
+                                });
+
+                                var viewsEl = document.getElementById("kisi-metric-views-val");
+                                var dlEl = document.getElementById("kisi-metric-downloads-val");
+                                if (viewsEl && syncedViews > baseViews) viewsEl.textContent = formatInt(syncedViews);
+                                if (dlEl && syncedDownloads > baseDownloads) dlEl.textContent = formatInt(syncedDownloads);
+
+                                if (!matchedCard && syncedViews === 0 && syncedDownloads === 0) {
+                                    tryFetchAt(idx + 1);
                                 }
-                            });
-
-                            var viewsEl = document.getElementById("kisi-metric-views-val");
-                            var dlEl = document.getElementById("kisi-metric-downloads-val");
-                            if (viewsEl && syncedViews > baseViews) viewsEl.textContent = formatInt(syncedViews);
-                            if (dlEl && syncedDownloads > baseDownloads) dlEl.textContent = formatInt(syncedDownloads);
-
-                            if (!matchedCard && syncedViews === 0 && syncedDownloads === 0) {
+                            })
+                            .catch(function () {
                                 tryFetchAt(idx + 1);
-                            }
-                        })
-                        .catch(function () {
-                            tryFetchAt(idx + 1);
-                        });
-                }
+                            });
+                    }
 
-                tryFetchAt(0);
-            })(issueLinks, currentSlugs, initialViews, initialDownloads);
+                    tryFetchAt(0);
+                })(issueLinks, currentSlugs, initialViews, initialDownloads);
+            }
         } catch (err) {
             // Preserve default layout cleanly if anything unexpected fails
         }

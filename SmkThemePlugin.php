@@ -22,8 +22,17 @@ use PKP\submissionFile\SubmissionFile;
 
 class SmkThemePlugin extends ThemePlugin
 {
-    /** Cache TTL in seconds for aggregated journal metrics (30 minutes). */
-    private const STATS_CACHE_TTL = 1800;
+    /** Cache TTL in seconds for aggregated journal metrics (6 hours). */
+    private const STATS_CACHE_TTL = 21600;
+
+    /** Cache TTL in seconds for per-article view/download metrics (10 minutes). */
+    private const ARTICLE_METRICS_CACHE_TTL = 600;
+
+    /** Cache TTL in seconds for per-article galley/SDG metadata (24 hours). */
+    private const ARTICLE_META_CACHE_TTL = 86400;
+
+    /** Request-local cache for built context URLs. */
+    private ?array $requestUrlsCache = null;
 
     /**
      * Initialize child theme options, styles, scripts, and template hooks.
@@ -33,6 +42,11 @@ class SmkThemePlugin extends ThemePlugin
         $this->setParent('defaultthemeplugin');
 
         $this->registerThemeOptions();
+
+        // Child theme uses Noto Sans / Georgia / Public Sans; remove parent's extra PHP font endpoint.
+        if (method_exists($this, 'removeStyle')) {
+            $this->removeStyle('font');
+        }
 
         $this->addStyle('smk-custom', 'styles/custom.css');
         $this->addScript('smk-theme', 'js/kisi-theme.js');
@@ -126,19 +140,22 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $contextId = (int) $context->getId();
-        $dispatcher = Application::get()->getDispatcher();
         $contextPath = $context->getPath();
 
-        $urls = [
-            'journalHome' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'index'),
-            'archive' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'issue', 'archive'),
-            'sdgCategory' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'catalog', 'category', ['sdgs']),
-            'editorialTeam' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'about', 'editorialTeam'),
-            'login' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'login'),
-            'register' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'user', 'register'),
-            'statistics' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'statistics'),
-            'sdgIconBase' => rtrim($request->getBaseUrl(), '/') . '/' . trim($this->getPluginPath(), '/') . '/assets/img/sdg/',
-        ];
+        if ($this->requestUrlsCache === null) {
+            $dispatcher = Application::get()->getDispatcher();
+            $this->requestUrlsCache = [
+                'journalHome' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'index'),
+                'archive' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'issue', 'archive'),
+                'sdgCategory' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'catalog', 'category', ['sdgs']),
+                'editorialTeam' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'about', 'editorialTeam'),
+                'login' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'login'),
+                'register' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'user', 'register'),
+                'statistics' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'statistics'),
+                'sdgIconBase' => rtrim($request->getBaseUrl(), '/') . '/' . trim($this->getPluginPath(), '/') . '/assets/img/sdg/',
+            ];
+        }
+        $urls = $this->requestUrlsCache;
 
         $payload = [
             'journalName' => (string) $context->getLocalizedName(),
@@ -147,17 +164,19 @@ class SmkThemePlugin extends ThemePlugin
             'launchLabel' => trim((string) $this->getOption('statsLaunchLabel')) ?: 'January 2024',
         ];
 
+        $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
+
         if ($template === 'frontend/pages/indexJournal.tpl') {
             $templateMgr->assign('kisiHeroOptions', $this->buildHeroOptions());
             $payload['pageType'] = 'home';
             $payload['homeStats'] = $this->getCachedData(
-                "kisi_smk_home_stats_v1_{$contextId}",
+                "kisi_smk_home_stats_v2_{$contextId}_{$protocol}",
                 fn () => $this->computeHomeStats($request, $contextPath, $contextId)
             );
         } elseif ($this->isStatisticsRequest($request, $templateMgr)) {
             $payload['pageType'] = 'statistics';
             $payload['fullStats'] = $this->getCachedData(
-                "kisi_smk_full_stats_v1_{$contextId}",
+                "kisi_smk_full_stats_v2_{$contextId}_{$protocol}",
                 fn () => $this->computeFullStatistics($request, $contextPath, $contextId)
             );
         } elseif (
@@ -172,7 +191,7 @@ class SmkThemePlugin extends ThemePlugin
             $payload['articleData'] = $this->computeArticlePageData($request, $contextPath, $contextId, $templateMgr);
         } elseif ($template === 'frontend/pages/catalogCategory.tpl') {
             $payload['pageType'] = 'catalogCategory';
-            $payload['categoryArticleSdgs'] = $this->computeCatalogCategorySdgs($templateMgr);
+            $payload['categoryArticleSdgs'] = $this->computeCatalogCategorySdgs($contextId, $templateMgr);
         }
 
         $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
@@ -227,10 +246,10 @@ class SmkThemePlugin extends ThemePlugin
     /**
      * Cache wrapper with safe fallback if the cache driver fails.
      */
-    private function getCachedData(string $key, callable $callback): array
+    private function getCachedData(string $key, callable $callback, int $ttl = self::STATS_CACHE_TTL): array
     {
         try {
-            return Cache::remember($key, self::STATS_CACHE_TTL, $callback);
+            return Cache::remember($key, $ttl, $callback);
         } catch (\Throwable $e) {
             return $callback();
         }
@@ -242,13 +261,13 @@ class SmkThemePlugin extends ThemePlugin
     private function computeHomeStats($request, string $contextPath, int $contextId): array
     {
         $dispatcher = Application::get()->getDispatcher();
-        $submissions = $this->getPublishedSubmissionsIndexed($contextId);
+        $submissions = $this->getCachedPublishedSubmissions($contextId);
         $issueTitlesById = $this->getPublishedIssueTitles($contextId);
 
         $researchersCount = $this->countUniquePublishedAuthors($contextId);
         $sdgArticlesCount = $this->countSdgPublishedArticles($contextId, $submissions);
 
-        $allTimeTotals = $this->fetchSubmissionMetricsMap($contextId, null, null);
+        $allTimeTotals = $this->getCachedAllTimeMetrics($contextId);
         $grandViews = 0;
         $grandDownloads = 0;
         foreach ($submissions as $subId => $meta) {
@@ -313,10 +332,10 @@ class SmkThemePlugin extends ThemePlugin
     private function computeFullStatistics($request, string $contextPath, int $contextId): array
     {
         $dispatcher = Application::get()->getDispatcher();
-        $submissions = $this->getPublishedSubmissionsIndexed($contextId);
+        $submissions = $this->getCachedPublishedSubmissions($contextId);
         $issues = $this->getPublishedIssuesData($request, $contextPath, $contextId);
 
-        $allTimeTotals = $this->fetchSubmissionMetricsMap($contextId, null, null);
+        $allTimeTotals = $this->getCachedAllTimeMetrics($contextId);
 
         $grandViews = 0;
         $grandDownloads = 0;
@@ -413,41 +432,64 @@ class SmkThemePlugin extends ThemePlugin
 
         if ($article) {
             $submissionId = (int) $article->getId();
-            $metrics = $this->fetchSingleArticleTotalsByType($submissionId, $contextId, $templateMgr);
-            $views = $metrics['views'];
-            $downloads = $metrics['downloads'];
-
             if (!$publication && method_exists($article, 'getCurrentPublication')) {
                 $publication = $article->getCurrentPublication();
             }
+            $pubId = ($publication && method_exists($publication, 'getId')) ? (int) $publication->getId() : 0;
+
+            $metrics = $this->getCachedData(
+                "kisi_smk_art_metrics_v2_{$contextId}_{$submissionId}",
+                fn () => $this->fetchSingleArticleTotalsByType($submissionId, $contextId, $templateMgr),
+                self::ARTICLE_METRICS_CACHE_TTL
+            );
+            $views = $metrics['views'];
+            $downloads = $metrics['downloads'];
 
             if ($publication) {
-                $galleys = $publication->getData('galleys') ?? [];
-                foreach ($galleys as $galley) {
-                    $subFileId = (int) ($galley->getData('submissionFileId') ?: $galley->getData('fileId'));
-                    $label = (string) $galley->getGalleyLabel();
-                    $galleyBestId = (string) $galley->getBestGalleyId();
+                $bestId = $article->getBestId();
+                $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
+                $metaCached = $this->getCachedData(
+                    "kisi_smk_art_meta_v2_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
+                    function () use ($request, $dispatcher, $contextPath, $bestId, $publication): array {
+                        $galleyMeta = [];
+                        $xmlDependentImages = [];
+                        $galleys = $publication->getData('galleys') ?? [];
+                        foreach ($galleys as $galley) {
+                            $subFileId = (int) ($galley->getData('submissionFileId') ?: $galley->getData('fileId'));
+                            $label = (string) $galley->getGalleyLabel();
+                            $galleyBestId = (string) $galley->getBestGalleyId();
 
-                    $galleyMeta[] = [
-                        'galleyId' => $galleyBestId,
-                        'numericGalleyId' => (string) $galley->getId(),
-                        'fileId' => (string) $subFileId,
-                        'label' => $label,
-                    ];
+                            $galleyMeta[] = [
+                                'galleyId' => $galleyBestId,
+                                'numericGalleyId' => (string) $galley->getId(),
+                                'fileId' => (string) $subFileId,
+                                'label' => $label,
+                            ];
 
-                    if ($subFileId > 0 && preg_match('/^(xml|jats|full[\s-]*text\s*xml)$/i', trim($label))) {
-                        $xmlDependentImages = $this->resolveDependentImagesMap(
-                            $request,
-                            $dispatcher,
-                            $contextPath,
-                            $article->getBestId(),
-                            $galleyBestId,
-                            $subFileId
-                        );
-                    }
-                }
+                            if ($subFileId > 0 && preg_match('/^(xml|jats|full[\s-]*text\s*xml)$/i', trim($label))) {
+                                $xmlDependentImages = $this->resolveDependentImagesMap(
+                                    $request,
+                                    $dispatcher,
+                                    $contextPath,
+                                    $bestId,
+                                    $galleyBestId,
+                                    $subFileId
+                                );
+                            }
+                        }
 
-                $sdgNumbers = $this->extractPublicationSdgs($publication);
+                        return [
+                            'galleyMeta' => $galleyMeta,
+                            'xmlDependentImages' => $xmlDependentImages,
+                            'sdgNumbers' => $this->extractPublicationSdgs($publication),
+                        ];
+                    },
+                    self::ARTICLE_META_CACHE_TTL
+                );
+
+                $galleyMeta = $metaCached['galleyMeta'] ?? [];
+                $xmlDependentImages = $metaCached['xmlDependentImages'] ?? [];
+                $sdgNumbers = $metaCached['sdgNumbers'] ?? [];
             }
         }
 
@@ -506,34 +548,46 @@ class SmkThemePlugin extends ThemePlugin
     /**
      * Extract SDG numbers per article on the catalog category page to prevent browser N+1 fetches.
      */
-    private function computeCatalogCategorySdgs($templateMgr): array
+    private function computeCatalogCategorySdgs(int $contextId, $templateMgr): array
     {
-        $result = [];
         $submissions = $templateMgr->getTemplateVars('publishedSubmissions')
             ?? $templateMgr->getTemplateVars('submissions')
             ?? $templateMgr->getTemplateVars('articles')
             ?? [];
 
+        $ids = [];
         foreach ($submissions as $submission) {
-            if (!is_object($submission) || !method_exists($submission, 'getId')) {
-                continue;
-            }
-            $publication = method_exists($submission, 'getCurrentPublication')
-                ? $submission->getCurrentPublication()
-                : null;
-            if (!$publication) {
-                continue;
-            }
-            $sdgs = $this->extractPublicationSdgs($publication);
-            if (!empty($sdgs)) {
-                $result[(string) $submission->getId()] = $sdgs;
-                if (method_exists($submission, 'getBestId')) {
-                    $result[(string) $submission->getBestId()] = $sdgs;
-                }
+            if (is_object($submission) && method_exists($submission, 'getId')) {
+                $ids[] = (int) $submission->getId();
             }
         }
+        if (empty($ids)) {
+            return [];
+        }
 
-        return $result;
+        $cacheKey = 'kisi_smk_cat_sdgs_v2_' . $contextId . '_' . md5(implode(',', $ids));
+        return $this->getCachedData($cacheKey, function () use ($submissions): array {
+            $result = [];
+            foreach ($submissions as $submission) {
+                if (!is_object($submission) || !method_exists($submission, 'getId')) {
+                    continue;
+                }
+                $publication = method_exists($submission, 'getCurrentPublication')
+                    ? $submission->getCurrentPublication()
+                    : null;
+                if (!$publication) {
+                    continue;
+                }
+                $sdgs = $this->extractPublicationSdgs($publication);
+                if (!empty($sdgs)) {
+                    $result[(string) $submission->getId()] = $sdgs;
+                    if (method_exists($submission, 'getBestId')) {
+                        $result[(string) $submission->getBestId()] = $sdgs;
+                    }
+                }
+            }
+            return $result;
+        });
     }
 
     /**
@@ -615,16 +669,21 @@ class SmkThemePlugin extends ThemePlugin
             }
         }
 
+        $hasValidByType = false;
         try {
             $statsService = app()->get('publicationStats');
             if ($statsService && method_exists($statsService, 'getTotalsByType')) {
                 $byType = $statsService->getTotalsByType($submissionId, $contextId, null, null);
-                $parsed = $extractTotalsFromMap($byType);
-                $views = max($views, $parsed['views']);
-                $downloads = max($downloads, $parsed['downloads']);
+                $byTypeArr = (array) $byType;
+                if (array_key_exists('abstract', $byTypeArr) || array_key_exists('abstractViews', $byTypeArr)) {
+                    $parsed = $extractTotalsFromMap($byTypeArr);
+                    $views = max($views, $parsed['views']);
+                    $downloads = max($downloads, $parsed['downloads']);
+                    $hasValidByType = ($views > 0 || $downloads > 0);
+                }
             }
 
-            if ($statsService && method_exists($statsService, 'getTotals')) {
+            if (!$hasValidByType && $statsService && method_exists($statsService, 'getTotals')) {
                 if ($views === 0) {
                     $subTotals = $statsService->getTotals([
                         'contextIds' => [$contextId],
@@ -646,7 +705,7 @@ class SmkThemePlugin extends ThemePlugin
             // Fall back safely to direct database totals below
         }
 
-        if ($views === 0 || $downloads === 0) {
+        if (!$hasValidByType && ($views === 0 || $downloads === 0)) {
             try {
                 if ($views === 0) {
                     $dbViews = (int) \Illuminate\Support\Facades\DB::table('metrics_submission')
@@ -895,35 +954,48 @@ class SmkThemePlugin extends ThemePlugin
         }
     }
 
-    private function getPublishedSubmissionsIndexed(int $contextId): array
+    private function getCachedAllTimeMetrics(int $contextId): array
     {
-        $indexed = [];
-        try {
-            $submissions = Repo::submission()
-                ->getCollector()
-                ->filterByContextIds([$contextId])
-                ->filterByStatus([Submission::STATUS_PUBLISHED])
-                ->getMany();
+        return $this->getCachedData(
+            "kisi_smk_alltime_totals_v2_{$contextId}",
+            fn () => $this->fetchSubmissionMetricsMap($contextId, null, null)
+        );
+    }
 
-            foreach ($submissions as $submission) {
-                $publication = $submission->getCurrentPublication();
-                if (!$publication) {
-                    continue;
+    private function getCachedPublishedSubmissions(int $contextId): array
+    {
+        return $this->getCachedData(
+            "kisi_smk_pub_submissions_v2_{$contextId}",
+            function () use ($contextId): array {
+                $indexed = [];
+                try {
+                    $submissions = Repo::submission()
+                        ->getCollector()
+                        ->filterByContextIds([$contextId])
+                        ->filterByStatus([Submission::STATUS_PUBLISHED])
+                        ->getMany();
+
+                    foreach ($submissions as $submission) {
+                        $publication = $submission->getCurrentPublication();
+                        if (!$publication) {
+                            continue;
+                        }
+                        $subId = (int) $submission->getId();
+                        $indexed[$subId] = [
+                            'id' => $subId,
+                            'bestId' => (string) $submission->getBestId(),
+                            'title' => trim(strip_tags((string) $publication->getLocalizedFullTitle())) ?: ('Article #' . $subId),
+                            'issueId' => (int) ($publication->getData('issueId') ?? 0),
+                            'sdgs' => $this->extractPublicationSdgs($publication),
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    return [];
                 }
-                $subId = (int) $submission->getId();
-                $indexed[$subId] = [
-                    'id' => $subId,
-                    'bestId' => (string) $submission->getBestId(),
-                    'title' => trim(strip_tags((string) $publication->getLocalizedFullTitle())) ?: ('Article #' . $subId),
-                    'issueId' => (int) ($publication->getData('issueId') ?? 0),
-                    'publication' => $publication,
-                ];
-            }
-        } catch (\Throwable $e) {
-            return [];
-        }
 
-        return $indexed;
+                return $indexed;
+            }
+        );
     }
 
     private function getPublishedIssuesData($request, string $contextPath, int $contextId): array
@@ -989,7 +1061,8 @@ class SmkThemePlugin extends ThemePlugin
                 ->where('s.context_id', $contextId)
                 ->where('s.status', Submission::STATUS_PUBLISHED)
                 ->whereColumn('s.current_publication_id', 'p.publication_id')
-                ->select('a.author_id', 'ag.setting_value as given_name', 'af.setting_value as family_name')
+                ->select('ag.setting_value as given_name', 'af.setting_value as family_name')
+                ->distinct()
                 ->get();
 
             $uniqueNames = [];
@@ -1031,7 +1104,7 @@ class SmkThemePlugin extends ThemePlugin
 
         $count = 0;
         foreach ($submissions as $meta) {
-            if (!empty($this->extractPublicationSdgs($meta['publication']))) {
+            if (!empty($meta['sdgs'])) {
                 $count++;
             }
         }
