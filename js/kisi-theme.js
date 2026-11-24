@@ -255,25 +255,25 @@
                 '</div>' +
                 '<div class="kisi-stats-kpi-grid">' +
                     '<div class="kisi-stats-kpi-card" style="--kpi-accent: #ff7a18;">' +
-                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Recorded OJS Traffic</span><span class="kisi-stats-kpi-icon">&#127760;</span></div>' +
+                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Recorded OJS Traffic</span></div>' +
                         '<div id="kisi-stat-total-visitors" class="kisi-stats-kpi-number">' + formatInt(totalVisitors) + '</div>' +
                         '<div class="kisi-stats-kpi-title">Cumulative Recorded Visits</div>' +
                         '<div class="kisi-stats-kpi-desc">Combined journal homepage views, abstract investigations, and full-text galley downloads.</div>' +
                     '</div>' +
                     '<div class="kisi-stats-kpi-card" style="--kpi-accent: #d9531e;">' +
-                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Item Investigations</span><span class="kisi-stats-kpi-icon">&#128065;</span></div>' +
+                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Item Investigations</span></div>' +
                         '<div id="kisi-stat-total-views" class="kisi-stats-kpi-number">' + formatInt(totalViews) + '</div>' +
                         '<div class="kisi-stats-kpi-title">Total Abstract Views</div>' +
                         '<div class="kisi-stats-kpi-desc">Cumulative abstract and article landing page views across all published issues.</div>' +
                     '</div>' +
                     '<div class="kisi-stats-kpi-card" style="--kpi-accent: #4C9F38;">' +
-                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Item Requests</span><span class="kisi-stats-kpi-icon">&#128229;</span></div>' +
+                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Item Requests</span></div>' +
                         '<div id="kisi-stat-total-downloads" class="kisi-stats-kpi-number">' + formatInt(totalDownloads) + '</div>' +
                         '<div class="kisi-stats-kpi-title">Total Full-Text Downloads</div>' +
                         '<div class="kisi-stats-kpi-desc">Cumulative PDF and full-text galley requests across all published issues.</div>' +
                     '</div>' +
                     '<div class="kisi-stats-kpi-card" style="--kpi-accent: #c9203a;">' +
-                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Article Usage Events</span><span class="kisi-stats-kpi-icon">&#128202;</span></div>' +
+                        '<div class="kisi-stats-kpi-top"><span class="kisi-stats-kpi-standard">Article Usage Events</span></div>' +
                         '<div id="kisi-stat-total-impact" class="kisi-stats-kpi-number">' + formatInt(combinedImpact) + '</div>' +
                         '<div class="kisi-stats-kpi-title">Combined Readership Impact</div>' +
                         '<div class="kisi-stats-kpi-desc">Total combined abstract views and full-text galley downloads recorded by OJS.</div>' +
@@ -288,7 +288,7 @@
                 '<div class="kisi-daily-analytics-panel">' +
                     '<div class="kisi-daily-panel-header">' +
                         '<div class="kisi-daily-title-group">' +
-                            '<h3><span>&#128200;</span> Daily Compiled Readership &amp; Traffic (Last 30 Days)</h3>' +
+                            '<h3>Daily Compiled Readership &amp; Traffic (Last 30 Days)</h3>' +
                             '<p><span class="kisi-live-dot"></span>Compiled daily by OJS Usage Statistics scheduled tasks (COUNTER R5).</p>' +
                         '</div>' +
                         '<div class="kisi-daily-range-tabs">' +
@@ -334,18 +334,18 @@
                 '<div class="kisi-geo-live-grid">' +
                     '<div class="kisi-geo-panel">' +
                         '<div class="kisi-subpanel-header">' +
-                            '<h3 class="kisi-subpanel-title"><span>&#127757;</span> Top Reader Countries</h3>' +
+                            '<h3 class="kisi-subpanel-title">Top Reader Countries</h3>' +
                             '<span class="kisi-subpanel-badge">OJS Geo Metrics</span>' +
                         '</div>' +
                         '<ul id="kisi-country-ranking-list" class="kisi-country-list"></ul>' +
                     '</div>' +
                     '<div class="kisi-stats-panel">' +
-                        '<div class="kisi-stats-panel-title"><span>&#128218; Usage Breakdown by Issue</span></div>' +
+                        '<div class="kisi-stats-panel-title">Usage Breakdown by Issue</div>' +
                         '<div id="kisi-stat-issues-table-box"></div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="kisi-stats-panel" style="margin-top:24px;">' +
-                    '<div class="kisi-stats-panel-title"><span>&#127942; Top 10 Most Read &amp; Downloaded Articles</span></div>' +
+                    '<div class="kisi-stats-panel-title">Top 10 Most Read &amp; Downloaded Articles</div>' +
                     '<div id="kisi-stat-top-articles-box"></div>' +
                 '</div>' +
             '</div>';
@@ -723,10 +723,112 @@
         var articleDetails = document.querySelector(".obj_article_details");
         if (!articleDetails) return;
 
+        function parseMetricInt(val) {
+            if (typeof val === "number" && isFinite(val)) return Math.max(0, Math.round(val));
+            var digits = String(val || "").replace(/[^\d]/g, "");
+            return digits ? (parseInt(digits, 10) || 0) : 0;
+        }
+
+        function extractArticleSlug(rawUrl) {
+            if (!rawUrl) return "";
+            try {
+                var u = new URL(rawUrl, window.location.origin);
+                var m = u.pathname.match(/\/article\/view\/([^\/?#]+)/i);
+                return m && m[1] ? m[1].toLowerCase() : "";
+            } catch (e) {
+                var m2 = String(rawUrl).match(/\/article\/view\/([^\/?#]+)/i);
+                return m2 && m2[1] ? m2[1].toLowerCase() : "";
+            }
+        }
+
+        function extractArticleMetricsFromContainer(containerEl, isSummaryCard) {
+            var res = { views: 0, downloads: 0 };
+            if (!containerEl) return res;
+
+            function isSafeMetricNode(el) {
+                if (!el) return false;
+                if (el.closest && el.closest(".abstract, .description, .title, h1, h2, h3, h4")) return false;
+                if (el.querySelector && el.querySelector("a[href]")) return false;
+                if (el.tagName === "A" && !/stat|metric|pill|count/i.test(typeof el.className === "string" ? el.className : "")) return false;
+                return true;
+            }
+
+            var metricNodes = containerEl.querySelectorAll(".kisi-article-metric, .kisi-metric-pill, .kisi-monthly-stat-pill, [data-kisi-metric]");
+            metricNodes.forEach(function (el) {
+                if (!isSafeMetricNode(el)) return;
+                var cls = ((typeof el.className === "string" ? el.className : "") + " " + (el.getAttribute("title") || "") + " " + (el.getAttribute("data-kisi-metric") || "")).toLowerCase();
+                var txt = (el.textContent || "").trim();
+                var num = parseMetricInt(txt);
+                if (!num) return;
+                if (/download|pdf|galley|request/.test(cls) || /download/i.test(txt)) {
+                    res.downloads = Math.max(res.downloads, num);
+                } else if (/view|abstract|read|investig/.test(cls) || /view/i.test(txt)) {
+                    res.views = Math.max(res.views, num);
+                }
+            });
+
+            containerEl.querySelectorAll(".views, .abstract-views, [class*='view-counter'], [class*='view_counter'], [class*='viewcount']").forEach(function (el) {
+                if (!isSafeMetricNode(el)) return;
+                res.views = Math.max(res.views, parseMetricInt(el.textContent));
+            });
+
+            containerEl.querySelectorAll(".downloads, .pdf-downloads, .galley-downloads, [class*='download-counter'], [class*='download_counter'], [class*='downloadcount']").forEach(function (el) {
+                if (!isSafeMetricNode(el)) return;
+                res.downloads = Math.max(res.downloads, parseMetricInt(el.textContent));
+            });
+
+            if (isSummaryCard) {
+                var cardClone = containerEl.cloneNode(true);
+                cardClone.querySelectorAll(".title, .authors, .published, .pages, .description, .abstract, h1, h2, h3, h4").forEach(function (n) { n.remove(); });
+                cardClone.querySelectorAll("span[title*='view' i], span[aria-label*='view' i], div[title*='view' i]").forEach(function (el) {
+                    if (/^\s*[\d,.\s]+(?:views?)?\s*$/i.test(el.textContent || "")) {
+                        res.views = Math.max(res.views, parseMetricInt(el.textContent));
+                    }
+                });
+                cardClone.querySelectorAll("span[title*='download' i], span[aria-label*='download' i], div[title*='download' i]").forEach(function (el) {
+                    if (/^\s*[\d,.\s]+(?:downloads?)?\s*$/i.test(el.textContent || "")) {
+                        res.downloads = Math.max(res.downloads, parseMetricInt(el.textContent));
+                    }
+                });
+
+                var text = (cardClone.textContent || "").replace(/\s+/g, " ");
+                var mViewsAfter = text.match(/(\d[\d,.]*)\s*(?:abstract\s+)?views?\b/i);
+                var mViewsBefore = text.match(/\b(?:abstract\s+)?views?\s*[:\-]\s*(\d[\d,.]*)/i);
+                if (mViewsAfter) res.views = Math.max(res.views, parseMetricInt(mViewsAfter[1]));
+                if (mViewsBefore) res.views = Math.max(res.views, parseMetricInt(mViewsBefore[1]));
+                var mDlAfter = text.match(/(\d[\d,.]*)\s*(?:pdf\s+|full-text\s+)?downloads?\b/i);
+                var mDlBefore = text.match(/\b(?:pdf\s+|full-text\s+)?downloads?\s*[:\-]\s*(\d[\d,.]*)/i);
+                if (mDlAfter) res.downloads = Math.max(res.downloads, parseMetricInt(mDlAfter[1]));
+                if (mDlBefore) res.downloads = Math.max(res.downloads, parseMetricInt(mDlBefore[1]));
+            }
+
+            return res;
+        }
+
         try {
             articleDetails.classList.add("frontiers-layout");
             var urls = themeData.urls || {};
             var articleData = themeData.articleData || {};
+
+            var domInitMetrics = extractArticleMetricsFromContainer(articleDetails, false);
+            var issueLinks = [];
+            document.querySelectorAll('.cmp_breadcrumbs a[href*="/issue/view/"], .item.issue a[href*="/issue/view/"]').forEach(function (a) {
+                var href = a.getAttribute("href");
+                if (href && issueLinks.indexOf(href) === -1) issueLinks.push(href);
+            });
+            if (urls.home && issueLinks.indexOf(urls.home) === -1) {
+                issueLinks.push(urls.home);
+            }
+
+            var currentSlugs = [];
+            [
+                window.location.href,
+                (document.querySelector('meta[name="citation_abstract_html_url"]') || {}).content,
+                (document.querySelector('meta[property="og:url"]') || {}).content
+            ].forEach(function (u) {
+                var s = extractArticleSlug(u);
+                if (s && currentSlugs.indexOf(s) === -1) currentSlugs.push(s);
+            });
 
             var leftRail = document.createElement("aside");
             leftRail.className = "frontiers-left-rail";
@@ -959,7 +1061,7 @@
             infoBanner.className = "frontiers-info-banner";
             var bannerTextDiv = document.createElement("div");
             bannerTextDiv.className = "frontiers-info-banner-text";
-            bannerTextDiv.appendChild(document.createTextNode("\u24D8 Official published version: "));
+            bannerTextDiv.appendChild(document.createTextNode("Official published version: "));
             var doiAnchor = doiItem ? doiItem.querySelector("a") : null;
             if (doiAnchor) {
                 var safeDoiUrl = sanitizeUrl(doiAnchor.getAttribute("href"), "");
@@ -1174,7 +1276,7 @@
                     edCard.className = "frontiers-card";
                     var edTitle = document.createElement("div");
                     edTitle.className = "frontiers-card-title";
-                    edTitle.textContent = "\u270E Review Editor";
+                    edTitle.textContent = "Review Editor";
                     var edList = document.createElement("div");
                     edList.className = "frontiers-editor-list";
 
@@ -1237,14 +1339,16 @@
                 editorialPlaceHolder.remove();
             }
 
-            // Real article metrics directly from PHP backend (no extra HTTP request)
+            // Real article metrics from PHP backend + DOM + synced issue TOC fallback
             var metricsCard = document.createElement("div");
             metricsCard.className = "frontiers-card";
             var artMetrics = articleData.metrics || {};
+            var initialViews = Math.max(parseMetricInt(artMetrics.views), domInitMetrics.views);
+            var initialDownloads = Math.max(parseMetricInt(artMetrics.downloads), domInitMetrics.downloads);
             metricsCard.innerHTML =
-                '<div class="frontiers-card-title">&#128202; Article Metrics</div>' +
-                '<div class="frontiers-metrics-box"><span class="frontiers-metrics-icon">&#128065;</span><div class="frontiers-metrics-content"><span class="frontiers-metrics-number">' + formatInt(artMetrics.views) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
-                '<div class="frontiers-metrics-box"><span class="frontiers-metrics-icon">&#128229;</span><div class="frontiers-metrics-content"><span class="frontiers-metrics-number">' + formatInt(artMetrics.downloads) + '</span><span class="frontiers-metrics-label">Total PDF Downloads</span></div></div>';
+                '<div class="frontiers-card-title">Article Metrics</div>' +
+                '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-views-val" class="frontiers-metrics-number">' + formatInt(initialViews) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
+                '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-downloads-val" class="frontiers-metrics-number">' + formatInt(initialDownloads) + '</span><span class="frontiers-metrics-label">Total PDF Downloads</span></div></div>';
 
             var outlinePlaceHolder = document.createElement("div");
             leftRail.appendChild(outlinePlaceHolder);
@@ -1258,7 +1362,7 @@
                 card.className = "frontiers-card";
                 var cTitle = document.createElement("div");
                 cTitle.className = "frontiers-card-title";
-                cTitle.textContent = "\u2630 Outline";
+                cTitle.textContent = "Outline";
                 var ul = document.createElement("ul");
                 ul.className = "frontiers-outline-list";
                 outlineItems.forEach(function (item, idx) {
@@ -1397,7 +1501,7 @@
                 sdgCard.className = "frontiers-card";
                 var sdgTitle = document.createElement("div");
                 sdgTitle.className = "frontiers-card-title";
-                sdgTitle.textContent = "\uD83C\uDF0D UN SDGs Contribution";
+                sdgTitle.textContent = "UN SDGs Contribution";
                 var sdgGrid = document.createElement("div");
                 sdgGrid.className = "frontiers-sdg-grid";
 
@@ -1457,6 +1561,90 @@
             articleDetails.appendChild(leftRail);
             articleDetails.appendChild(centerMain);
             articleDetails.appendChild(rightRail);
+
+            (function syncMetricsFromIssueToc(targetUrls, slugs, baseViews, baseDownloads) {
+                if (!targetUrls.length || !slugs.length || typeof window.fetch !== "function") return;
+                var candidates = targetUrls.filter(function (u) {
+                    try {
+                        return new URL(u, window.location.origin).origin === window.location.origin;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+                if (!candidates.length) return;
+
+                function tryFetchAt(idx) {
+                    if (idx >= candidates.length) return;
+                    fetch(new URL(candidates[idx], window.location.origin).toString(), { credentials: "same-origin" })
+                        .then(function (resp) {
+                            if (!resp.ok) throw new Error("HTTP " + resp.status);
+                            return resp.text();
+                        })
+                        .then(function (html) {
+                            if (!html || typeof DOMParser === "undefined") {
+                                tryFetchAt(idx + 1);
+                                return;
+                            }
+                            var doc = new DOMParser().parseFromString(html, "text/html");
+                            var syncedViews = baseViews;
+                            var syncedDownloads = baseDownloads;
+                            var matchedCard = false;
+
+                            var dataNode = doc.getElementById("kisi-theme-data");
+                            var subMap = null;
+                            if (dataNode && dataNode.textContent) {
+                                try {
+                                    var parsedData = JSON.parse(dataNode.textContent);
+                                    if (parsedData && parsedData.submissionMetrics && typeof parsedData.submissionMetrics === "object") {
+                                        subMap = parsedData.submissionMetrics;
+                                    }
+                                } catch (e) {}
+                            }
+
+                            doc.querySelectorAll(".obj_article_summary, .kisi-monthly-card, .cmp_article_list > li").forEach(function (card) {
+                                var cardSlugs = [];
+                                var isMatch = false;
+                                card.querySelectorAll('a[href*="/article/view/"]').forEach(function (a) {
+                                    var s = extractArticleSlug(a.getAttribute("href"));
+                                    if (s) {
+                                        cardSlugs.push(s);
+                                        if (slugs.indexOf(s) !== -1) isMatch = true;
+                                    }
+                                });
+                                if (!isMatch) return;
+                                matchedCard = true;
+
+                                var cardMetrics = extractArticleMetricsFromContainer(card, true);
+                                if (cardMetrics.views > syncedViews) syncedViews = cardMetrics.views;
+                                if (cardMetrics.downloads > syncedDownloads) syncedDownloads = cardMetrics.downloads;
+
+                                var subIdAttr = card.getAttribute("data-submission-id") || card.getAttribute("data-id") || "";
+                                if (subMap) {
+                                    slugs.concat(cardSlugs, subIdAttr ? [String(subIdAttr)] : []).forEach(function (k) {
+                                        if (k && subMap[k]) {
+                                            syncedViews = Math.max(syncedViews, parseMetricInt(subMap[k].views));
+                                            syncedDownloads = Math.max(syncedDownloads, parseMetricInt(subMap[k].downloads));
+                                        }
+                                    });
+                                }
+                            });
+
+                            var viewsEl = document.getElementById("kisi-metric-views-val");
+                            var dlEl = document.getElementById("kisi-metric-downloads-val");
+                            if (viewsEl && syncedViews > baseViews) viewsEl.textContent = formatInt(syncedViews);
+                            if (dlEl && syncedDownloads > baseDownloads) dlEl.textContent = formatInt(syncedDownloads);
+
+                            if (!matchedCard && syncedViews === 0 && syncedDownloads === 0) {
+                                tryFetchAt(idx + 1);
+                            }
+                        })
+                        .catch(function () {
+                            tryFetchAt(idx + 1);
+                        });
+                }
+
+                tryFetchAt(0);
+            })(issueLinks, currentSlugs, initialViews, initialDownloads);
         } catch (err) {
             // Preserve default layout cleanly if anything unexpected fails
         }
@@ -1534,7 +1722,7 @@
                     pill.className = "category-sdg-pill";
                     pill.style.backgroundColor = s.color;
                     pill.title = "SDG " + num + ": " + s.name;
-                    pill.textContent = "\uD83C\uDF0D SDG " + num;
+                    pill.textContent = "SDG " + num;
                     badgeWrapper.appendChild(pill);
                 });
                 titleEl.parentNode.insertBefore(badgeWrapper, titleEl);
@@ -1601,7 +1789,7 @@
         if (parentBox && !parentBox.querySelector(".section-header-elife")) {
             var simHeader = document.createElement("div");
             simHeader.className = "section-header-elife";
-            simHeader.innerHTML = '<span class="section-eyebrow">&#128279; Related Research</span><h2 class="elife-section-title"><span class="title-bold">Similar</span> <span class="title-italic">Articles</span></h2>';
+            simHeader.innerHTML = '<span class="section-eyebrow">Related Research</span><h2 class="elife-section-title"><span class="title-bold">Similar</span> <span class="title-italic">Articles</span></h2>';
             if (simHeading) {
                 simHeading.style.setProperty("display", "none", "important");
                 simHeading.parentNode.insertBefore(simHeader, simHeading);
@@ -1700,11 +1888,11 @@
                     var galleysUl = summary.querySelector(".galleys_links");
                     if (galleysUl) {
                         galleysUl.style.setProperty("display", "block", "important");
-                        galleysUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">&#128196; FULL-TEXT</a></li>';
+                        galleysUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">FULL-TEXT</a></li>';
                     } else if (articleUrl !== "#") {
                         var newFtUl = document.createElement("ul");
                         newFtUl.className = "galleys_links";
-                        newFtUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">&#128196; FULL-TEXT</a></li>';
+                        newFtUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">FULL-TEXT</a></li>';
                         summary.appendChild(newFtUl);
                     }
                 });
@@ -1726,7 +1914,7 @@
                 }
                 link.setAttribute("href", sanitizeUrl(fullTextUrl, "#"));
                 link.classList.remove("pdf");
-                link.innerHTML = "&#128196; FULL-TEXT";
+                link.textContent = "FULL-TEXT";
             }
         });
 
@@ -1778,7 +1966,7 @@
                             '<div class="kisi-monthly-rank-badge">0' + rankNum + '</div>' +
                             '<div class="kisi-monthly-info">' +
                                 '<div class="kisi-monthly-issue-tag">' +
-                                    (isFirst ? '<span class="kisi-monthly-top-crown">&#127942; #1 Most Read</span>' : '') +
+                                    (isFirst ? '<span class="kisi-monthly-top-crown">#1 Most Read</span>' : '') +
                                     '<span>' + escapeHtml(item.issueTitle || "Published Issue") + '</span>' +
                                 '</div>' +
                                 '<a href="' + escapeHtml(cleanUrl) + '" class="kisi-monthly-title" title="' + escapeHtml(item.title) + '">' +
@@ -1788,8 +1976,8 @@
                         '</div>' +
                         '<div class="kisi-monthly-metrics-footer">' +
                             '<div class="kisi-monthly-pills-group">' +
-                                '<span class="kisi-monthly-stat-pill views" title="Abstract Views">&#128065; ' + formatInt(item.periodViews) + ' views</span>' +
-                                '<span class="kisi-monthly-stat-pill pdf" title="Full-Text Downloads">&#128229; ' + formatInt(item.periodDownloads) + ' downloads</span>' +
+                                '<span class="kisi-monthly-stat-pill views" title="Abstract Views">' + formatInt(item.periodViews) + ' views</span>' +
+                                '<span class="kisi-monthly-stat-pill pdf" title="Full-Text Downloads">' + formatInt(item.periodDownloads) + ' downloads</span>' +
                             '</div>' +
                             '<span class="kisi-monthly-alltime-note">All-time: <strong>' + formatInt(item.allTimeTotal) + '</strong> reads</span>' +
                         '</div>' +
@@ -1799,13 +1987,13 @@
             monthlySection.innerHTML =
                 '<div class="kisi-monthly-header-row">' +
                     '<div class="section-header-elife">' +
-                        '<span class="section-eyebrow">&#128293; Readership Impact</span>' +
+                        '<span class="section-eyebrow">Readership Impact</span>' +
                         '<h2 class="elife-section-title">' +
                             '<span class="title-bold">Top Read</span> <span class="title-italic">Articles</span>' +
                         '</h2>' +
                     '</div>' +
                     '<div class="kisi-monthly-header-meta">' +
-                        '<span class="kisi-monthly-period-pill">&#128197; ' + escapeHtml(periodLabel) + '</span>' +
+                        '<span class="kisi-monthly-period-pill">' + escapeHtml(periodLabel) + '</span>' +
                         '<a href="' + escapeHtml(statsPageUrl) + '" class="kisi-monthly-all-link">Full Impact Statistics &rarr;</a>' +
                     '</div>' +
                 '</div>' +

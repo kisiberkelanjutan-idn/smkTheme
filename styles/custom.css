@@ -3274,12 +3274,15 @@ div#kisi-home-frontiers-stats,
     box-sizing: border-box !important;
 }
 
-.kisi-frontiers-stat-item {
+div#kisi-home-frontiers-stats .kisi-frontiers-stat-item,
+div#kisi-home-frontiers-stats a.kisi-frontiers-stat-item,
+.kisi-frontiers-stats-bar .kisi-frontiers-stat-item {
     padding: 22px 28px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     border-right: 1px solid rgba(255, 122, 24, 0.16) !important;
+    color: #1f1610 !important;
     text-decoration: none !important;
     transition: background-color 0.2s ease, transform 0.2s ease !important;
     box-sizing: border-box !important;
@@ -3294,10 +3297,12 @@ div#kisi-home-frontiers-stats,
     text-decoration: none !important;
 }
 
-.kisi-frontiers-stat-value {
+div#kisi-home-frontiers-stats .kisi-frontiers-stat-item .kisi-frontiers-stat-value,
+div#kisi-home-frontiers-stats a.kisi-frontiers-stat-item .kisi-frontiers-stat-value,
+.kisi-frontiers-stats-bar .kisi-frontiers-stat-value {
     font-size: 2.15rem !important;
     font-weight: 800 !important;
-    color: #18181b !important;
+    color: #1f1610 !important;
     line-height: 1.15 !important;
     letter-spacing: -0.5px !important;
     margin: 0 0 4px 0 !important;
@@ -3305,14 +3310,18 @@ div#kisi-home-frontiers-stats,
     transition: color 0.2s ease !important;
 }
 
-.kisi-frontiers-stat-item:hover .kisi-frontiers-stat-value {
-    color: #d9531e !important;
+div#kisi-home-frontiers-stats .kisi-frontiers-stat-item:hover .kisi-frontiers-stat-value,
+div#kisi-home-frontiers-stats a.kisi-frontiers-stat-item:hover .kisi-frontiers-stat-value,
+.kisi-frontiers-stats-bar .kisi-frontiers-stat-item:hover .kisi-frontiers-stat-value {
+    color: #c2410c !important;
 }
 
-.kisi-frontiers-stat-label {
+div#kisi-home-frontiers-stats .kisi-frontiers-stat-item .kisi-frontiers-stat-label,
+div#kisi-home-frontiers-stats a.kisi-frontiers-stat-item .kisi-frontiers-stat-label,
+.kisi-frontiers-stats-bar .kisi-frontiers-stat-label {
     font-size: 0.92rem !important;
-    font-weight: 500 !important;
-    color: #5a524c !important;
+    font-weight: 600 !important;
+    color: #4a3728 !important;
     line-height: 1.35 !important;
     margin: 0 !important;
     text-decoration: none !important;

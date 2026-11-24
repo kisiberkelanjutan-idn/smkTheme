@@ -89,7 +89,7 @@
 				<a id="homepageIssue"></a>
 
 				<div class="section-header-elife">
-					<span class="section-eyebrow">&#128214; Discover Science</span>
+					<span class="section-eyebrow">Discover Science</span>
 					<h2 class="elife-section-title">
 						<span class="title-bold">Latest</span> <span class="title-italic">Research</span>
 					</h2>
@@ -117,7 +117,7 @@
 		{if $numAnnouncementsHomepage && $announcements}
 			<section class="elife-latest-announcements" style="margin-top: 70px; margin-bottom: 50px; padding-top: 40px; border-top: 2px solid #212121;">
 				<div class="section-header-elife">
-					<span class="section-eyebrow">&#128240; Stay Updated</span>
+					<span class="section-eyebrow">Stay Updated</span>
 					<h2 class="elife-section-title">
 						<span class="title-bold">Latest</span> <span class="title-italic">News &amp; Announcements</span>
 					</h2>

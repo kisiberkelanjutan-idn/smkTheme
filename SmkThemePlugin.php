@@ -160,7 +160,14 @@ class SmkThemePlugin extends ThemePlugin
                 "kisi_smk_full_stats_v1_{$contextId}",
                 fn () => $this->computeFullStatistics($request, $contextPath, $contextId)
             );
-        } elseif ($template === 'frontend/pages/article.tpl') {
+        } elseif (
+            $template === 'frontend/pages/article.tpl'
+            || str_ends_with($template, '/frontend/pages/article.tpl')
+            || (
+                $templateMgr->getTemplateVars('article')
+                && str_ends_with($template, '/article.tpl')
+            )
+        ) {
             $payload['pageType'] = 'article';
             $payload['articleData'] = $this->computeArticlePageData($request, $contextPath, $contextId, $templateMgr);
         } elseif ($template === 'frontend/pages/catalogCategory.tpl') {
@@ -384,7 +391,7 @@ class SmkThemePlugin extends ThemePlugin
     private function computeArticlePageData($request, string $contextPath, int $contextId, $templateMgr): array
     {
         $article = $templateMgr->getTemplateVars('article');
-        $publication = $templateMgr->getTemplateVars('publication');
+        $publication = $templateMgr->getTemplateVars('publication') ?: $templateMgr->getTemplateVars('currentPublication');
         $dispatcher = Application::get()->getDispatcher();
 
         $views = 0;
@@ -393,9 +400,20 @@ class SmkThemePlugin extends ThemePlugin
         $galleyMeta = [];
         $sdgNumbers = [];
 
+        if (!$article && $publication && method_exists($publication, 'getData')) {
+            $fallbackSubId = (int) $publication->getData('submissionId');
+            if ($fallbackSubId > 0) {
+                try {
+                    $article = \APP\facades\Repo::submission()->get($fallbackSubId);
+                } catch (\Throwable $e) {
+                    $article = null;
+                }
+            }
+        }
+
         if ($article) {
             $submissionId = (int) $article->getId();
-            $metrics = $this->fetchSingleArticleTotalsByType($submissionId, $contextId);
+            $metrics = $this->fetchSingleArticleTotalsByType($submissionId, $contextId, $templateMgr);
             $views = $metrics['views'];
             $downloads = $metrics['downloads'];
 
@@ -570,23 +588,92 @@ class SmkThemePlugin extends ThemePlugin
         return $map;
     }
 
-    private function fetchSingleArticleTotalsByType(int $submissionId, int $contextId): array
+    /**
+     * Fetch lifetime views and downloads for a single submission, mirroring article list totals.
+     */
+    private function fetchSingleArticleTotalsByType(int $submissionId, int $contextId, $templateMgr = null): array
     {
+        $views = 0;
+        $downloads = 0;
+
+        $extractTotalsFromMap = function ($byType): array {
+            $arr = (array) $byType;
+            return [
+                'views' => (int) ($arr['abstractViews'] ?? $arr['abstract'] ?? 0),
+                'downloads' => (int) ($arr['pdfViews'] ?? $arr['pdf'] ?? 0)
+                    + (int) ($arr['htmlViews'] ?? $arr['html'] ?? 0)
+                    + (int) ($arr['otherViews'] ?? $arr['other'] ?? 0),
+            ];
+        };
+
+        if ($templateMgr && method_exists($templateMgr, 'getTemplateVars')) {
+            $tplByType = $templateMgr->getTemplateVars('metricsByType');
+            if ($tplByType) {
+                $parsed = $extractTotalsFromMap($tplByType);
+                $views = max($views, $parsed['views']);
+                $downloads = max($downloads, $parsed['downloads']);
+            }
+        }
+
         try {
             $statsService = app()->get('publicationStats');
             if ($statsService && method_exists($statsService, 'getTotalsByType')) {
-                $byType = (array) $statsService->getTotalsByType($submissionId, $contextId, null, null);
-                $views = (int) ($byType['abstractViews'] ?? 0);
-                $downloads = (int) ($byType['pdfViews'] ?? 0)
-                    + (int) ($byType['htmlViews'] ?? 0)
-                    + (int) ($byType['otherViews'] ?? 0);
-                return ['views' => $views, 'downloads' => $downloads];
+                $byType = $statsService->getTotalsByType($submissionId, $contextId, null, null);
+                $parsed = $extractTotalsFromMap($byType);
+                $views = max($views, $parsed['views']);
+                $downloads = max($downloads, $parsed['downloads']);
+            }
+
+            if ($statsService && method_exists($statsService, 'getTotals')) {
+                if ($views === 0) {
+                    $subTotals = $statsService->getTotals([
+                        'contextIds' => [$contextId],
+                        'submissionIds' => [$submissionId],
+                        'assocTypes' => [Application::ASSOC_TYPE_SUBMISSION],
+                    ]);
+                    $views = is_numeric($subTotals) ? (int) $subTotals : 0;
+                }
+                if ($downloads === 0) {
+                    $fileTotals = $statsService->getTotals([
+                        'contextIds' => [$contextId],
+                        'submissionIds' => [$submissionId],
+                        'assocTypes' => [Application::ASSOC_TYPE_SUBMISSION_FILE],
+                    ]);
+                    $downloads = is_numeric($fileTotals) ? (int) $fileTotals : 0;
+                }
             }
         } catch (\Throwable $e) {
-            // Fall back safely below
+            // Fall back safely to direct database totals below
         }
 
-        return ['views' => 0, 'downloads' => 0];
+        if ($views === 0 || $downloads === 0) {
+            try {
+                if ($views === 0) {
+                    $dbViews = (int) \Illuminate\Support\Facades\DB::table('metrics_submission')
+                        ->where('context_id', $contextId)
+                        ->where('submission_id', $submissionId)
+                        ->where('assoc_type', Application::ASSOC_TYPE_SUBMISSION)
+                        ->sum('metric');
+                    if ($dbViews > 0) {
+                        $views = $dbViews;
+                    }
+                }
+                if ($downloads === 0) {
+                    $dbDownloads = (int) \Illuminate\Support\Facades\DB::table('metrics_submission')
+                        ->where('context_id', $contextId)
+                        ->where('submission_id', $submissionId)
+                        ->where('assoc_type', Application::ASSOC_TYPE_SUBMISSION_FILE)
+                        ->sum('metric');
+                    if ($dbDownloads > 0) {
+                        $downloads = $dbDownloads;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore if metrics_submission is unavailable
+            }
+        }
+
+        return ['views' => $views, 'downloads' => $downloads];
     }
 
     private function fetchContextTotalViews(int $contextId): int
