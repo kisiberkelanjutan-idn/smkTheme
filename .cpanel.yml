@@ -1,9 +1,9 @@
 ---
 deployment:
   tasks:
-    # Menggunakan $HOME agar username cPanel tidak tertulis eksplisit di repo publik
+    # Menggunakan $HOME & /bin/cp agar kompatibel dengan CloudLinux/CageFS tanpa ssh/rsync
     - export DEPLOYPATH=$HOME/public_html/plugins/themes/smkTheme/
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/rsync -av --delete --exclude='.git*' --exclude='.cpanel.yml' --exclude='README.md' ./ $DEPLOYPATH
-    # Opsional: bersihkan cache template Smarty OJS otomatis setelah deploy
-    # - /bin/rm -f $HOME/public_html/cache/t_compile/*.php
+    - /bin/rm -rf $DEPLOYPATH/assets $DEPLOYPATH/js $DEPLOYPATH/locale $DEPLOYPATH/styles $DEPLOYPATH/templates
+    - /bin/cp -f index.php SmkThemePlugin.php version.xml $DEPLOYPATH
+    - /bin/cp -R assets js locale styles templates $DEPLOYPATH
