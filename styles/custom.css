@@ -1439,19 +1439,26 @@ body.pkp_page_article .pkp_structure_content {
 .frontiers-affiliations-list a {
     display: inline-flex !important;
     align-items: center !important;
+    gap: 5px !important;
     vertical-align: middle !important;
-    margin-left: 4px !important;
+    margin-left: 6px !important;
+    color: #0e6f5c !important;
+    font-size: 0.85em !important;
     text-decoration: none !important;
+}
+
+.frontiers-affiliations-list a:hover .kisi-ror-url {
+    text-decoration: underline !important;
 }
 
 .frontiers-affiliations-list svg,
 .frontiers-affiliations-list img {
-    width: 18px !important;
-    height: 18px !important;
-    max-width: 18px !important;
-    max-height: 18px !important;
+    width: auto !important;
+    max-width: 28px !important;
+    height: 16px !important;
     display: inline-block !important;
     vertical-align: middle !important;
+    flex-shrink: 0 !important;
 }
 
 .frontiers-affiliations-list svg metadata,

@@ -170,13 +170,13 @@ class SmkThemePlugin extends ThemePlugin
             $templateMgr->assign('kisiHeroOptions', $this->buildHeroOptions());
             $payload['pageType'] = 'home';
             $payload['homeStats'] = $this->getCachedData(
-                "kisi_smk_home_stats_v2_{$contextId}_{$protocol}",
+                "kisi_smk_home_stats_v3_{$contextId}_{$protocol}",
                 fn () => $this->computeHomeStats($request, $contextPath, $contextId)
             );
         } elseif ($this->isStatisticsRequest($request, $templateMgr)) {
             $payload['pageType'] = 'statistics';
             $payload['fullStats'] = $this->getCachedData(
-                "kisi_smk_full_stats_v2_{$contextId}_{$protocol}",
+                "kisi_smk_full_stats_v3_{$contextId}_{$protocol}",
                 fn () => $this->computeFullStatistics($request, $contextPath, $contextId)
             );
         } elseif (
@@ -449,7 +449,7 @@ class SmkThemePlugin extends ThemePlugin
                 $bestId = $article->getBestId();
                 $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
                 $metaCached = $this->getCachedData(
-                    "kisi_smk_art_meta_v2_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
+                    "kisi_smk_art_meta_v3_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
                     function () use ($request, $dispatcher, $contextPath, $bestId, $publication): array {
                         $galleyMeta = [];
                         $xmlDependentImages = [];
@@ -546,7 +546,7 @@ class SmkThemePlugin extends ThemePlugin
     }
 
     /**
-     * Extract SDG numbers per article on the catalog category page to prevent browser N+1 fetches.
+     * Extract SDG numbers per article on the catalog category page via batched controlled_vocabs SQL.
      */
     private function computeCatalogCategorySdgs(int $contextId, $templateMgr): array
     {
@@ -555,39 +555,117 @@ class SmkThemePlugin extends ThemePlugin
             ?? $templateMgr->getTemplateVars('articles')
             ?? [];
 
-        $ids = [];
-        foreach ($submissions as $submission) {
-            if (is_object($submission) && method_exists($submission, 'getId')) {
-                $ids[] = (int) $submission->getId();
-            }
-        }
-        if (empty($ids)) {
-            return [];
-        }
-
-        $cacheKey = 'kisi_smk_cat_sdgs_v2_' . $contextId . '_' . md5(implode(',', $ids));
-        return $this->getCachedData($cacheKey, function () use ($submissions): array {
-            $result = [];
+        $entries = [];
+        if (is_iterable($submissions)) {
             foreach ($submissions as $submission) {
                 if (!is_object($submission) || !method_exists($submission, 'getId')) {
                     continue;
                 }
+                $subId = (int) $submission->getId();
+                $bestId = method_exists($submission, 'getBestId') ? (string) $submission->getBestId() : (string) $subId;
                 $publication = method_exists($submission, 'getCurrentPublication')
                     ? $submission->getCurrentPublication()
                     : null;
-                if (!$publication) {
-                    continue;
-                }
-                $sdgs = $this->extractPublicationSdgs($publication);
-                if (!empty($sdgs)) {
-                    $result[(string) $submission->getId()] = $sdgs;
-                    if (method_exists($submission, 'getBestId')) {
-                        $result[(string) $submission->getBestId()] = $sdgs;
-                    }
+                $pubId = ($publication && method_exists($publication, 'getId')) ? (int) $publication->getId() : 0;
+
+                if ($subId > 0) {
+                    $entries[] = [
+                        'subId' => $subId,
+                        'bestId' => $bestId,
+                        'pubId' => $pubId,
+                        'publication' => $publication,
+                    ];
                 }
             }
-            return $result;
-        });
+        }
+
+        // Fallback if template variable wasn't directly iterable: resolve from active category in SQL
+        if (empty($entries)) {
+            try {
+                $category = $templateMgr->getTemplateVars('category');
+                $categoryId = (is_object($category) && method_exists($category, 'getId')) ? (int) $category->getId() : 0;
+                $query = DB::table('publication_categories as pc')
+                    ->join('categories as c', 'c.category_id', '=', 'pc.category_id')
+                    ->join('publications as p', 'p.publication_id', '=', 'pc.publication_id')
+                    ->join('submissions as s', 's.submission_id', '=', 'p.submission_id')
+                    ->where('c.context_id', $contextId)
+                    ->where('s.context_id', $contextId)
+                    ->where('s.status', Submission::STATUS_PUBLISHED)
+                    ->whereColumn('s.current_publication_id', 'p.publication_id');
+
+                if ($categoryId > 0) {
+                    $query->where('c.category_id', $categoryId);
+                } else {
+                    $query->where('c.path', 'sdgs');
+                }
+
+                $hasUrlPath = Schema::hasColumn('publications', 'url_path');
+                $cols = ['s.submission_id', 'p.publication_id'];
+                if ($hasUrlPath) {
+                    $cols[] = 'p.url_path';
+                }
+                foreach ($query->select($cols)->get() as $row) {
+                    $subId = (int) $row->submission_id;
+                    $bestId = ($hasUrlPath && !empty($row->url_path)) ? (string) $row->url_path : (string) $subId;
+                    $entries[] = [
+                        'subId' => $subId,
+                        'bestId' => $bestId,
+                        'pubId' => (int) $row->publication_id,
+                        'publication' => null,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Ignore SQL fallback failure
+            }
+        }
+
+        if (empty($entries)) {
+            return [];
+        }
+
+        $ids = array_map(static fn (array $e): int => $e['subId'], $entries);
+        $cacheKey = 'kisi_smk_cat_sdgs_v3_' . $contextId . '_' . md5(implode(',', $ids));
+
+        try {
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached) && !empty($cached)) {
+                return $cached;
+            }
+        } catch (\Throwable $e) {
+            // Compute cleanly if cache read fails
+        }
+
+        $pubIds = array_values(array_unique(array_filter(array_map(static fn (array $e): int => $e['pubId'], $entries))));
+        $vocabTextsByPub = $this->fetchControlledVocabTextsByPubIds($pubIds);
+
+        $result = [];
+        foreach ($entries as $entry) {
+            $pubId = $entry['pubId'];
+            $texts = $vocabTextsByPub[$pubId] ?? [];
+            if ($entry['publication']) {
+                foreach (['subjects', 'keywords'] as $field) {
+                    $this->flattenMixedTexts($entry['publication']->getLocalizedData($field), $texts);
+                }
+            }
+            $sdgs = $this->extractSdgsFromTexts($texts);
+            if (!empty($sdgs)) {
+                $subKey = (string) $entry['subId'];
+                $bestKey = (string) $entry['bestId'];
+                $result[$subKey] = $sdgs;
+                $result[$bestKey] = $sdgs;
+                $result[strtolower($bestKey)] = $sdgs;
+            }
+        }
+
+        if (!empty($result)) {
+            try {
+                Cache::put($cacheKey, $result, self::STATS_CACHE_TTL);
+            } catch (\Throwable $e) {
+                // Non-fatal
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -965,9 +1043,11 @@ class SmkThemePlugin extends ThemePlugin
     private function getCachedPublishedSubmissions(int $contextId): array
     {
         return $this->getCachedData(
-            "kisi_smk_pub_submissions_v2_{$contextId}",
+            "kisi_smk_pub_submissions_v3_{$contextId}",
             function () use ($contextId): array {
                 $indexed = [];
+                $rawEntries = [];
+                $pubIds = [];
                 try {
                     $submissions = Repo::submission()
                         ->getCollector()
@@ -981,12 +1061,32 @@ class SmkThemePlugin extends ThemePlugin
                             continue;
                         }
                         $subId = (int) $submission->getId();
-                        $indexed[$subId] = [
+                        $pubId = method_exists($publication, 'getId') ? (int) $publication->getId() : 0;
+                        if ($pubId > 0) {
+                            $pubIds[] = $pubId;
+                        }
+                        $rawEntries[$subId] = [
                             'id' => $subId,
+                            'pubId' => $pubId,
                             'bestId' => (string) $submission->getBestId(),
                             'title' => trim(strip_tags((string) $publication->getLocalizedFullTitle())) ?: ('Article #' . $subId),
                             'issueId' => (int) ($publication->getData('issueId') ?? 0),
-                            'sdgs' => $this->extractPublicationSdgs($publication),
+                            'publication' => $publication,
+                        ];
+                    }
+
+                    $vocabByPub = $this->fetchControlledVocabTextsByPubIds($pubIds);
+                    foreach ($rawEntries as $subId => $item) {
+                        $texts = $vocabByPub[$item['pubId']] ?? [];
+                        foreach (['subjects', 'keywords'] as $field) {
+                            $this->flattenMixedTexts($item['publication']->getLocalizedData($field), $texts);
+                        }
+                        $indexed[$subId] = [
+                            'id' => $item['id'],
+                            'bestId' => $item['bestId'],
+                            'title' => $item['title'],
+                            'issueId' => $item['issueId'],
+                            'sdgs' => $this->extractSdgsFromTexts($texts),
                         ];
                     }
                 } catch (\Throwable $e) {
@@ -1113,23 +1213,130 @@ class SmkThemePlugin extends ThemePlugin
 
     private function extractPublicationSdgs($publication): array
     {
+        if (!$publication) {
+            return [];
+        }
+
         $texts = [];
+        $pubId = method_exists($publication, 'getId') ? (int) $publication->getId() : 0;
+        if ($pubId > 0) {
+            $vocabMap = $this->fetchControlledVocabTextsByPubIds([$pubId]);
+            $texts = $vocabMap[$pubId] ?? [];
+        }
+
         foreach (['subjects', 'keywords'] as $field) {
-            $val = $publication->getLocalizedData($field);
-            if (is_array($val)) {
-                $texts[] = implode(' ; ', $val);
-            } elseif (is_string($val) && $val !== '') {
-                $texts[] = $val;
+            if (method_exists($publication, 'getLocalizedData')) {
+                $this->flattenMixedTexts($publication->getLocalizedData($field), $texts);
             }
         }
 
-        $combined = trim(implode(' ; ', $texts));
+        return $this->extractSdgsFromTexts($texts);
+    }
+
+    /**
+     * Batch-load OJS 3.5 controlled vocabulary keywords/subjects/disciplines and legacy publication_settings for publication IDs.
+     */
+    private function fetchControlledVocabTextsByPubIds(array $publicationIds): array
+    {
+        $pubIds = array_values(array_unique(array_filter(array_map('intval', $publicationIds), static fn (int $id): bool => $id > 0)));
+        if (empty($pubIds)) {
+            return [];
+        }
+
+        $map = [];
+        try {
+            if (Schema::hasTable('controlled_vocabs') && Schema::hasTable('controlled_vocab_entries') && Schema::hasTable('controlled_vocab_entry_settings')) {
+                $rows = DB::table('controlled_vocabs as cv')
+                    ->join('controlled_vocab_entries as cve', 'cve.controlled_vocab_id', '=', 'cv.controlled_vocab_id')
+                    ->join('controlled_vocab_entry_settings as cves', 'cves.controlled_vocab_entry_id', '=', 'cve.controlled_vocab_entry_id')
+                    ->whereIn('cv.assoc_id', $pubIds)
+                    ->whereIn('cv.symbolic', ['submissionKeyword', 'submissionSubject', 'submissionDiscipline'])
+                    ->whereNotNull('cves.setting_value')
+                    ->where('cves.setting_value', '!=', '')
+                    ->select('cv.assoc_id as publication_id', 'cves.setting_value')
+                    ->get();
+
+                foreach ($rows as $row) {
+                    $pid = (int) $row->publication_id;
+                    $val = trim((string) $row->setting_value);
+                    if ($val !== '') {
+                        $map[$pid][] = $val;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall through safely to publication_settings
+        }
+
+        try {
+            if (Schema::hasTable('publication_settings')) {
+                $psRows = DB::table('publication_settings')
+                    ->whereIn('publication_id', $pubIds)
+                    ->whereIn('setting_name', ['subjects', 'keywords'])
+                    ->whereNotNull('setting_value')
+                    ->where('setting_value', '!=', '')
+                    ->select('publication_id', 'setting_value')
+                    ->get();
+
+                foreach ($psRows as $row) {
+                    $pid = (int) $row->publication_id;
+                    $raw = trim((string) $row->setting_value);
+                    if ($raw === '') {
+                        continue;
+                    }
+                    $decoded = json_decode($raw, true);
+                    if (is_array($decoded)) {
+                        $this->flattenMixedTexts($decoded, $map[$pid]);
+                    } else {
+                        $map[$pid][] = $raw;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal
+        }
+
+        return $map;
+    }
+
+    private function flattenMixedTexts($value, ?array &$out): void
+    {
+        if ($out === null) {
+            $out = [];
+        }
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '') {
+                $out[] = $trimmed;
+            }
+            return;
+        }
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $this->flattenMixedTexts($item, $out);
+            }
+            return;
+        }
+        if (is_object($value)) {
+            if (method_exists($value, 'getLocalizedData')) {
+                $this->flattenMixedTexts($value->getLocalizedData('name'), $out);
+            } elseif (method_exists($value, 'toArray')) {
+                $this->flattenMixedTexts($value->toArray(), $out);
+            } elseif (method_exists($value, '__toString')) {
+                $this->flattenMixedTexts((string) $value, $out);
+            }
+        }
+    }
+
+    private function extractSdgsFromTexts(array $texts): array
+    {
+        $combined = trim(implode(' ; ', array_unique($texts)));
         if ($combined === '') {
             return [];
         }
 
         $detected = [];
-        if (preg_match_all('/(?:sdg|sdgs|goal|tujuan)\s*[-:#]?\s*(1[0-7]|0?[1-9])\b/i', $combined, $matches)) {
+        if (preg_match_all('/(?:sdgs?|goals?|tujuan)\s*(?:goals?|#|:|-)?\s*(1[0-7]|0?[1-9])\b/i', $combined, $matches)) {
             foreach ($matches[1] as $numStr) {
                 $num = (int) $numStr;
                 if ($num >= 1 && $num <= 17 && !in_array($num, $detected, true)) {

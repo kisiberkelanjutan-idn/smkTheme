@@ -84,7 +84,7 @@
     function extractSdgsFromSubjects(combinedSubjects) {
         var detected = [];
         if (!combinedSubjects || !combinedSubjects.trim()) return detected;
-        var sdgRegex = /(?:sdg|sdgs|goal|tujuan)\s*[-:#]?\s*(1[0-7]|0?[1-9])\b/gi;
+        var sdgRegex = /(?:sdgs?|goals?|tujuan)\s*(?:goals?|#|:|-)?\s*(1[0-7]|0?[1-9])\b/gi;
         var match;
         while ((match = sdgRegex.exec(combinedSubjects)) !== null) {
             var num = parseInt(match[1], 10);
@@ -104,8 +104,41 @@
         return detected;
     }
 
+    function createSafeRorSvg() {
+        var ns = "http://www.w3.org/2000/svg";
+        var svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", "0 0 23.4225 16.696501");
+        svg.setAttribute("width", "23.4");
+        svg.setAttribute("height", "16.7");
+        svg.setAttribute("aria-hidden", "true");
+        svg.setAttribute("class", "kisi-ror-icon");
+
+        var g = document.createElementNS(ns, "g");
+        g.setAttribute("transform", "matrix(0.15,0,0,0.15,-0.7305,-0.624)");
+
+        [
+            "68.65,4.16 56.52,22.74 44.38,4.16",
+            "119.41,4.16 107.28,22.74 95.14,4.16",
+            "44.38,115.47 56.52,96.88 68.65,115.47",
+            "95.14,115.47 107.28,96.88 119.41,115.47"
+        ].forEach(function (pts) {
+            var p = document.createElementNS(ns, "polygon");
+            p.setAttribute("points", pts);
+            p.setAttribute("fill", "#53baa1");
+            g.appendChild(p);
+        });
+
+        var path = document.createElementNS(ns, "path");
+        path.setAttribute("fill", "#202826");
+        path.setAttribute("d", "m 145.53,63.71 c 4.3,-0.8 7.57,-2.71 9.8,-5.72 2.24,-3.01 3.35,-6.67 3.35,-10.96 0,-3.56 -0.62,-6.52 -1.85,-8.9 -1.23,-2.38 -2.9,-4.27 -4.99,-5.68 -2.09,-1.4 -4.53,-2.41 -7.31,-3.01 -2.78,-0.6 -5.72,-0.9 -8.81,-0.9 h -23.56 v 18.83 c -0.19,-0.55 -0.39,-1.09 -0.61,-1.63 -1.63,-3.95 -3.91,-7.32 -6.84,-10.1 -2.93,-2.78 -6.39,-4.92 -10.41,-6.41 -4.01,-1.49 -8.4,-2.24 -13.16,-2.24 -4.76,0 -9.14,0.75 -13.16,2.24 -4.01,1.49 -7.48,3.63 -10.41,6.41 -2.62,2.49 -4.72,5.46 -6.3,8.9 -0.23,-2.47 -0.81,-4.61 -1.74,-6.41 -1.23,-2.38 -2.9,-4.27 -4.99,-5.68 -2.09,-1.4 -4.53,-2.41 -7.31,-3.01 -2.78,-0.6 -5.72,-0.9 -8.81,-0.9 H 4.87 V 89.42 H 18.28 V 65.08 H 24.9 L 37.63,89.42 H 53.71 L 38.24,63.71 c 4.3,-0.8 7.57,-2.71 9.8,-5.72 0.1,-0.14 0.19,-0.29 0.29,-0.43 -0.02,0.47 -0.03,0.94 -0.03,1.42 0,4.87 0.82,9.29 2.45,13.24 1.63,3.95 3.91,7.32 6.84,10.1 2.92,2.78 6.39,4.92 10.41,6.41 4.01,1.49 8.4,2.24 13.16,2.24 4.76,0 9.14,-0.75 13.16,-2.24 4.01,-1.49 7.48,-3.63 10.41,-6.41 2.92,-2.78 5.2,-6.15 6.84,-10.1 0.22,-0.53 0.42,-1.08 0.61,-1.63 v 18.83 h 13.41 V 65.08 h 6.62 l 12.73,24.34 h 16.08 z M 36.39,50.81 c -0.72,0.92 -1.62,1.59 -2.71,2.02 -1.09,0.43 -2.31,0.69 -3.65,0.77 -1.35,0.09 -2.62,0.13 -3.83,0.13 H 18.29 V 39.89 h 8.77 c 1.2,0 2.44,0.09 3.7,0.26 1.26,0.17 2.38,0.5 3.35,0.99 0.97,0.49 1.78,1.19 2.41,2.11 0.63,0.92 0.95,2.15 0.95,3.7 0,1.65 -0.36,2.94 -1.08,3.86 z m 62.35,16.04 c -0.89,2.38 -2.16,4.44 -3.83,6.19 -1.66,1.75 -3.65,3.11 -5.98,4.09 -2.32,0.98 -4.92,1.46 -7.78,1.46 -2.87,0 -5.46,-0.49 -7.78,-1.46 -2.32,-0.97 -4.31,-2.34 -5.98,-4.09 -1.66,-1.75 -2.94,-3.81 -3.83,-6.19 -0.89,-2.38 -1.33,-5 -1.33,-7.87 0,-2.81 0.44,-5.42 1.33,-7.83 0.89,-2.41 2.16,-4.48 3.83,-6.23 1.66,-1.75 3.65,-3.11 5.98,-4.09 2.32,-0.97 4.91,-1.46 7.78,-1.46 2.87,0 5.46,0.49 7.78,1.46 2.32,0.97 4.31,2.34 5.98,4.09 1.66,1.75 2.94,3.83 3.83,6.23 0.89,2.41 1.33,5.02 1.33,7.83 0,2.87 -0.44,5.49 -1.33,7.87 z m 44.94,-16.04 c -0.72,0.92 -1.62,1.59 -2.71,2.02 -1.09,0.43 -2.31,0.69 -3.65,0.77 -1.35,0.09 -2.62,0.13 -3.83,0.13 h -7.91 V 39.89 h 8.77 c 1.2,0 2.44,0.09 3.7,0.26 1.26,0.17 2.38,0.5 3.35,0.99 0.97,0.49 1.78,1.19 2.41,2.11 0.63,0.92 0.95,2.15 0.95,3.7 0,1.65 -0.36,2.94 -1.08,3.86 z");
+        g.appendChild(path);
+
+        svg.appendChild(g);
+        return svg;
+    }
+
     /**
-     * Clone only safe inline elements (text, a, sup, sub, em, strong, span) from an element.
+     * Clone only safe inline elements (text, a, sup, sub, em, strong, span) from an element, preserving ROR badges safely.
      */
     function cloneSafeRichTextFragment(sourceEl) {
         var frag = document.createDocumentFragment();
@@ -126,23 +159,50 @@
             if (tag === "script" || tag === "style" || tag === "svg" || tag === "iframe" || tag === "object" || tag === "metadata") {
                 return;
             }
+            if (tag === "img") {
+                var safeImgSrc = sanitizeUrl(node.getAttribute("src"), "");
+                if (safeImgSrc && safeImgSrc !== "#") {
+                    var cleanImg = document.createElement("img");
+                    cleanImg.setAttribute("src", safeImgSrc);
+                    cleanImg.setAttribute("alt", node.getAttribute("alt") || "Logo");
+                    cleanImg.setAttribute("loading", "lazy");
+                    targetParent.appendChild(cleanImg);
+                }
+                return;
+            }
             if (!allowedTags[tag]) {
                 Array.from(node.childNodes).forEach(function (ch) { walk(ch, targetParent); });
                 return;
             }
 
             var cleanEl = document.createElement(tag);
+            var isRorLink = false;
             if (tag === "a") {
                 var safeHref = sanitizeUrl(node.getAttribute("href"), "");
                 if (safeHref && safeHref !== "#") {
                     cleanEl.setAttribute("href", safeHref);
-                    if (node.getAttribute("target") === "_blank") {
+                    isRorLink = /^https?:\/\/(?:www\.)?ror\.org\//i.test(safeHref);
+                    if (isRorLink || node.getAttribute("target") === "_blank") {
                         cleanEl.setAttribute("target", "_blank");
                         cleanEl.setAttribute("rel", "noopener noreferrer");
+                    }
+                    if (isRorLink) {
+                        cleanEl.className = "kisi-ror-link";
+                        cleanEl.setAttribute("title", "ROR: " + safeHref);
+                        cleanEl.setAttribute("aria-label", "Research Organization Registry: " + safeHref);
                     }
                 }
             }
             Array.from(node.childNodes).forEach(function (ch) { walk(ch, cleanEl); });
+            if (isRorLink && !cleanEl.querySelector("img, svg")) {
+                cleanEl.appendChild(createSafeRorSvg());
+                if (!cleanEl.textContent.trim()) {
+                    var rorUrlSpan = document.createElement("span");
+                    rorUrlSpan.className = "kisi-ror-url";
+                    rorUrlSpan.textContent = cleanEl.getAttribute("href") || "";
+                    cleanEl.appendChild(rorUrlSpan);
+                }
+            }
             targetParent.appendChild(cleanEl);
         }
 
@@ -957,12 +1017,27 @@
                     var affilIdx = "";
                     if (affilEl) {
                         var cloneAff = affilEl.cloneNode(true);
-                        cloneAff.querySelectorAll("metadata, title, desc").forEach(function (m) { m.remove(); });
-                        var cleanKey = cloneAff.textContent.replace(/\s+/g, " ").trim();
-                        if (cleanKey !== "") {
-                            var foundIdx = affilKeys.indexOf(cleanKey);
+                        cloneAff.querySelectorAll("metadata, title, desc, style").forEach(function (m) { m.remove(); });
+                        var affLinks = Array.from(cloneAff.querySelectorAll("a[href]")).map(function (a) { return a.getAttribute("href") || ""; }).filter(Boolean);
+                        var cleanTextKey = cloneAff.textContent.replace(/\s+/g, " ").trim();
+                        if (cleanTextKey !== "" || affLinks.length > 0) {
+                            var keyWithLinks = cleanTextKey + (affLinks.length ? " | " + affLinks.join(",") : "");
+                            var foundIdx = affilKeys.indexOf(keyWithLinks);
+                            if (foundIdx === -1 && cleanTextKey !== "") {
+                                for (var ak = 0; ak < affilKeys.length; ak++) {
+                                    var existingBase = affilKeys[ak].split(" | ")[0];
+                                    if (existingBase === cleanTextKey) {
+                                        foundIdx = ak;
+                                        if (affLinks.length > 0 && affilKeys[ak].indexOf(" | ") === -1) {
+                                            affilKeys[ak] = keyWithLinks;
+                                            affilElements[ak] = cloneAff;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
                             if (foundIdx === -1) {
-                                affilKeys.push(cleanKey);
+                                affilKeys.push(keyWithLinks);
                                 affilElements.push(cloneAff);
                                 affilIdx = String(affilKeys.length);
                             } else {
@@ -1798,7 +1873,9 @@
             var href = linkEl.getAttribute("href") || "";
             var idMatch = href.match(/\/article\/view\/([^\/?#]+)/i);
             var artKey = idMatch ? idMatch[1] : "";
-            var foundSdgs = Array.isArray(categoryMap[artKey]) ? categoryMap[artKey] : [];
+            var foundSdgs = Array.isArray(categoryMap[artKey])
+                ? categoryMap[artKey]
+                : (Array.isArray(categoryMap[String(artKey).toLowerCase()]) ? categoryMap[String(artKey).toLowerCase()] : []);
 
             var oldBadge = li.querySelector(".category-sdg-badge-wrapper");
             if (oldBadge) oldBadge.remove();
