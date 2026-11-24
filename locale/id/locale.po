@@ -1,0 +1,54 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: smkTheme 1.0.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.themes.smkTheme.name"
+msgstr "SMK Child Theme (Kisi Berkelanjutan)"
+
+msgid "plugins.themes.smkTheme.description"
+msgstr "Child theme OJS 3.5 turunan Default Theme yang aman, dengan opsi Hero terintegrasi, JATS XML viewer, badge SDG, dan statistik COUNTER R5 nyata."
+
+msgid "plugins.themes.smkTheme.option.heroScopeText.label"
+msgstr "Teks Scope / Tagline Hero"
+
+msgid "plugins.themes.smkTheme.option.heroScopeText.description"
+msgstr "Ringkasan fokus dan ruang lingkup jurnal yang tampil di bawah judul pada hero beranda."
+
+msgid "plugins.themes.smkTheme.option.heroPrimaryCtaLabel.label"
+msgstr "Label Tombol Utama Hero"
+
+msgid "plugins.themes.smkTheme.option.heroSecondaryCtaLabel.label"
+msgstr "Label Tautan Sekunder Hero"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptanceRate.label"
+msgstr "Metrik Acceptance Rate"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptanceRate.description"
+msgstr "Kosongkan jika tidak ingin menampilkan item ini di hero beranda."
+
+msgid "plugins.themes.smkTheme.option.heroFirstDecisionDays.label"
+msgstr "Hari Keputusan Pertama (Days to 1st Decision)"
+
+msgid "plugins.themes.smkTheme.option.heroFirstDecisionDays.description"
+msgstr "Angka hari rata-rata keputusan pertama (kosongkan untuk menyembunyikan)."
+
+msgid "plugins.themes.smkTheme.option.heroAcceptDays.label"
+msgstr "Hari hingga Diterima (Days to Accept)"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptDays.description"
+msgstr "Angka hari rata-rata hingga diterima (kosongkan untuk menyembunyikan)."
+
+msgid "plugins.themes.smkTheme.option.heroShowStatsBar.label"
+msgstr "Bar Statistik OJS di Beranda"
+
+msgid "plugins.themes.smkTheme.option.heroShowStatsBar.option"
+msgstr "Tampilkan bar metrik OJS 3 kolom (peneliti, pembaca/unduhan artikel, artikel SDG) pada section hero"
+
+msgid "plugins.themes.smkTheme.option.statsLaunchLabel.label"
+msgstr "Periode Awal Tracking Statistik"
+
+msgid "plugins.themes.smkTheme.option.statsLaunchLabel.description"
+msgstr "Label awal periode pencatatan pada halaman statistik jurnal (misal: January 2024)."

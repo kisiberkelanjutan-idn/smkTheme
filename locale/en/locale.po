@@ -1,0 +1,54 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: smkTheme 1.0.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.themes.smkTheme.name"
+msgstr "SMK Child Theme (Kisi Berkelanjutan)"
+
+msgid "plugins.themes.smkTheme.description"
+msgstr "Hardened OJS 3.5 child theme extending Default Theme with customizable hero metrics, JATS XML viewer, SDG badges, and real COUNTER R5 statistics."
+
+msgid "plugins.themes.smkTheme.option.heroScopeText.label"
+msgstr "Hero Scope / Tagline"
+
+msgid "plugins.themes.smkTheme.option.heroScopeText.description"
+msgstr "Short scope statement displayed below the journal title on the homepage hero banner."
+
+msgid "plugins.themes.smkTheme.option.heroPrimaryCtaLabel.label"
+msgstr "Hero Primary Button Label"
+
+msgid "plugins.themes.smkTheme.option.heroSecondaryCtaLabel.label"
+msgstr "Hero Secondary Link Label"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptanceRate.label"
+msgstr "Acceptance Rate Metric"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptanceRate.description"
+msgstr "Leave blank to hide this item on the homepage hero."
+
+msgid "plugins.themes.smkTheme.option.heroFirstDecisionDays.label"
+msgstr "Days to 1st Decision"
+
+msgid "plugins.themes.smkTheme.option.heroFirstDecisionDays.description"
+msgstr "Number of days displayed for first decision turnaround (leave blank to hide)."
+
+msgid "plugins.themes.smkTheme.option.heroAcceptDays.label"
+msgstr "Days to Accept"
+
+msgid "plugins.themes.smkTheme.option.heroAcceptDays.description"
+msgstr "Number of days displayed from submission to acceptance (leave blank to hide)."
+
+msgid "plugins.themes.smkTheme.option.heroShowStatsBar.label"
+msgstr "Homepage Live OJS Stats Bar"
+
+msgid "plugins.themes.smkTheme.option.heroShowStatsBar.option"
+msgstr "Display the 3-column real OJS metrics bar (researchers, article views/downloads, SDG articles) in the hero section"
+
+msgid "plugins.themes.smkTheme.option.statsLaunchLabel.label"
+msgstr "Statistics Tracking Start Period"
+
+msgid "plugins.themes.smkTheme.option.statsLaunchLabel.description"
+msgstr "Label shown as the start of cumulative tracking on the statistics page (e.g. January 2024)."

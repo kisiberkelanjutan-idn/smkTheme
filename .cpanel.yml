@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    # Menggunakan $HOME agar username cPanel tidak tertulis eksplisit di repo publik
+    - export DEPLOYPATH=$HOME/public_html/plugins/themes/smkTheme/
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/rsync -av --delete --exclude='.git*' --exclude='.cpanel.yml' --exclude='README.md' ./ $DEPLOYPATH
+    # Opsional: bersihkan cache template Smarty OJS otomatis setelah deploy
+    # - /bin/rm -f $HOME/public_html/cache/t_compile/*.php
