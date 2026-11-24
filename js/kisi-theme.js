@@ -725,7 +725,10 @@
 
         function parseMetricInt(val) {
             if (typeof val === "number" && isFinite(val)) return Math.max(0, Math.round(val));
-            var digits = String(val || "").replace(/[^\d]/g, "");
+            var str = String(val || "").trim();
+            var match = str.match(/(\d{1,3}(?:[.,]\d{3})+|\d+)/);
+            if (!match) return 0;
+            var digits = match[1].replace(/[^\d]/g, "");
             return digits ? (parseInt(digits, 10) || 0) : 0;
         }
 
@@ -753,6 +756,26 @@
                 return true;
             }
 
+            // Explicit parser for viewcounter plugin leaf nodes (avoids concatenating views + downloads + .viewcounter-sr)
+            containerEl.querySelectorAll(".viewcounter-sr").forEach(function (el) {
+                var srTxt = (el.textContent || "").trim();
+                var mV = srTxt.match(/^views?\s*:\s*([\d.,]+)/i);
+                if (mV) res.views = Math.max(res.views, parseMetricInt(mV[1]));
+                var mD = srTxt.match(/^downloads?\s*:\s*([\d.,]+)/i);
+                if (mD) res.downloads = Math.max(res.downloads, parseMetricInt(mD[1]));
+            });
+
+            containerEl.querySelectorAll(".viewcounter-visible[title]").forEach(function (el) {
+                var titleAttr = (el.getAttribute("title") || "").toLowerCase();
+                var num = parseMetricInt(el.textContent);
+                if (!num) return;
+                if (titleAttr.indexOf("download") !== -1) {
+                    res.downloads = Math.max(res.downloads, num);
+                } else if (titleAttr.indexOf("view") !== -1) {
+                    res.views = Math.max(res.views, num);
+                }
+            });
+
             var metricNodes = containerEl.querySelectorAll(".kisi-article-metric, .kisi-metric-pill, .kisi-monthly-stat-pill, [data-kisi-metric]");
             metricNodes.forEach(function (el) {
                 if (!isSafeMetricNode(el)) return;
@@ -767,19 +790,19 @@
                 }
             });
 
-            containerEl.querySelectorAll(".views, .abstract-views, [class*='view-counter'], [class*='view_counter'], [class*='viewcount']").forEach(function (el) {
+            containerEl.querySelectorAll(".views, .abstract-views, [class*='view-counter'], [class*='view_counter']").forEach(function (el) {
                 if (!isSafeMetricNode(el)) return;
                 res.views = Math.max(res.views, parseMetricInt(el.textContent));
             });
 
-            containerEl.querySelectorAll(".downloads, .pdf-downloads, .galley-downloads, [class*='download-counter'], [class*='download_counter'], [class*='downloadcount']").forEach(function (el) {
+            containerEl.querySelectorAll(".downloads, .pdf-downloads, .galley-downloads, [class*='download-counter'], [class*='download_counter']").forEach(function (el) {
                 if (!isSafeMetricNode(el)) return;
                 res.downloads = Math.max(res.downloads, parseMetricInt(el.textContent));
             });
 
             if (isSummaryCard) {
                 var cardClone = containerEl.cloneNode(true);
-                cardClone.querySelectorAll(".title, .authors, .published, .pages, .description, .abstract, h1, h2, h3, h4").forEach(function (n) { n.remove(); });
+                cardClone.querySelectorAll(".title, .authors, .published, .pages, .description, .abstract, h1, h2, h3, h4, .viewcounter-sr").forEach(function (n) { n.remove(); });
                 cardClone.querySelectorAll("span[title*='view' i], span[aria-label*='view' i], div[title*='view' i]").forEach(function (el) {
                     if (/^\s*[\d,.\s]+(?:views?)?\s*$/i.test(el.textContent || "")) {
                         res.views = Math.max(res.views, parseMetricInt(el.textContent));
@@ -1362,12 +1385,15 @@
                 editorialPlaceHolder.remove();
             }
 
-            // Real article metrics from PHP backend + DOM + synced issue TOC fallback
+            // Real article metrics from PHP backend + clean DOM/TOC fallback only when PHP metrics are empty
             var metricsCard = document.createElement("div");
             metricsCard.className = "frontiers-card";
             var artMetrics = articleData.metrics || {};
-            var initialViews = Math.max(parseMetricInt(artMetrics.views), domInitMetrics.views);
-            var initialDownloads = Math.max(parseMetricInt(artMetrics.downloads), domInitMetrics.downloads);
+            var phpViews = parseMetricInt(artMetrics.views);
+            var phpDownloads = parseMetricInt(artMetrics.downloads);
+            var hasServerMetrics = (phpViews > 0 || phpDownloads > 0);
+            var initialViews = hasServerMetrics ? phpViews : domInitMetrics.views;
+            var initialDownloads = hasServerMetrics ? phpDownloads : domInitMetrics.downloads;
             metricsCard.innerHTML =
                 '<div class="frontiers-card-title">Article Metrics</div>' +
                 '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-views-val" class="frontiers-metrics-number">' + formatInt(initialViews) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
