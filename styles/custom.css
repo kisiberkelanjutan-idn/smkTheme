@@ -853,6 +853,18 @@ body.pkp_page_index .pkp_structure_head,
     border: none !important;
 }
 
+.obj_issue_toc .section::before,
+.obj_issue_toc .section::after,
+.obj_issue_toc .galleys::before,
+.obj_issue_toc .galleys::after,
+.elife-native-toc .section::before,
+.elife-native-toc .section::after {
+    display: none !important;
+    content: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .elife-native-toc .cmp_article_list > li {
     float: none !important;
     border: none !important;
@@ -4970,7 +4982,11 @@ html body div.page.page_issue .obj_issue_toc > .title::after,
 html body div.page.page_issue .obj_issue_toc h1.title::before,
 html body div.page.page_issue .obj_issue_toc h1.title::after,
 html body div.page.page_issue .obj_issue_toc h2.title::before,
-html body div.page.page_issue .obj_issue_toc h2.title::after {
+html body div.page.page_issue .obj_issue_toc h2.title::after,
+html body .obj_issue_toc .section::before,
+html body .obj_issue_toc .section::after,
+html body .obj_issue_toc .galleys::before,
+html body .obj_issue_toc .galleys::after {
     display: none !important;
     content: none !important;
     border: 0 !important;
