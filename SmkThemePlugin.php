@@ -43,10 +43,17 @@ class SmkThemePlugin extends ThemePlugin
             $this->removeStyle('font');
         }
 
-        $this->addStyle('smk-custom', 'styles/custom.css');
-        $this->addScript('smk-theme', 'js/kisi-theme.js');
+        $this->addStyle('smk-custom', 'styles/custom.css?v=' . $this->assetVersion('styles/custom.css'));
+        $this->addScript('smk-theme', 'js/kisi-theme.js?v=' . $this->assetVersion('js/kisi-theme.js'));
 
         Hook::add('TemplateManager::display', [$this, 'loadTemplateData']);
+    }
+
+    private function assetVersion(string $relativePath): string
+    {
+        $filePath = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+        return is_file($filePath) ? (string) filemtime($filePath) : '1';
     }
 
     private function isThemeActivated(): bool
