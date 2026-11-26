@@ -1,9 +1,11 @@
 ---
 deployment:
   tasks:
-    # Menggunakan $HOME & /bin/cp agar kompatibel dengan CloudLinux/CageFS tanpa ssh/rsync
-    - export DEPLOYPATH=$HOME/public_html/plugins/themes/smkTheme/
-    - /bin/mkdir -p $DEPLOYPATH
-    - /bin/rm -rf $DEPLOYPATH/assets $DEPLOYPATH/js $DEPLOYPATH/locale $DEPLOYPATH/styles $DEPLOYPATH/templates
-    - /bin/cp -f index.php SmkThemePlugin.php version.xml $DEPLOYPATH
-    - /bin/cp -R assets js locale styles templates $DEPLOYPATH
+    - sha256sum -c SHA256SUMS
+    - export DEPLOYPATH=$HOME/public_html/plugins/themes/smkTheme
+    - /bin/rm -rf "$DEPLOYPATH"
+    - /bin/mkdir -p "$DEPLOYPATH"
+    - /bin/cp -R assets js locale styles templates .htaccess index.php README.md SHA256SUMS SmkThemePlugin.php version.xml "$DEPLOYPATH"/
+    - /bin/find "$DEPLOYPATH" -type d -exec /bin/chmod 755 {} \;
+    - /bin/find "$DEPLOYPATH" -type f -exec /bin/chmod 644 {} \;
+    - cd "$DEPLOYPATH" && sha256sum -c SHA256SUMS

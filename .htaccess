@@ -1,0 +1,11 @@
+# Security Hardening: Block direct HTTP access/execution of PHP, templates, configs, and manifests.
+# Static theme assets (.css, .js, .svg, .png, .jpg, .webp, .woff2) remain publicly accessible.
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|inc|tpl|po|mo|xml|yml|yaml|md|sh|sql|env|bak|swp|log)$|^SHA256SUMS$">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</FilesMatch>
