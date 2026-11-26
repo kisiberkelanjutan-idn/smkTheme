@@ -1,10 +1,4 @@
 #!/bin/sh
-# ==============================================================================
-# Kisi Berkelanjutan (smkTheme) — Fail-Closed Deployment & Integrity Gatekeeper
-# Runs automatically in:
-#   1. cPanel Git Deployment (.cpanel.yml) BEFORE & AFTER copying to public_html
-#   2. GitHub Actions CI (.github/workflows/security-check.yml) on push/PR
-# ==============================================================================
 
 set -eu
 
@@ -135,7 +129,6 @@ verify_manifest_and_hashes() {
     fi
 }
 
-# Mode pasca-salin: verifikasi hasil akhir di $DEPLOYPATH (public_html)
 if [ "${1:-}" = "--verify-target" ]; then
     TARGET_DIR="${2:-}"
     if [ -z "$TARGET_DIR" ] || [ ! -d "$TARGET_DIR" ]; then
@@ -149,10 +142,8 @@ fi
 
 cd "$REPO_ROOT"
 
-# 1. Pastikan seluruh .htaccess proteksi subfolder utuh
 verify_htaccess_set "$REPO_ROOT"
 
-# 2. Whitelist ketat file PHP & skrip eksekusi di seluruh repository
 unexpected_scripts=$(
     find . -path ./.git -prune -o -type f \( \
         -iname '*.php' -o -iname '*.php[0-9]*' -o -iname '*.phtml' -o -iname '*.phar' \
@@ -164,7 +155,6 @@ if [ -n "$unexpected_scripts" ]; then
     abort_deploy "Ditemukan file skrip/eksekusi di luar whitelist resmi: $unexpected_scripts"
 fi
 
-# 3. Pemindai Anti-Webshell / Backdoor pada kode PHP resmi
 bad_php=$(
     grep -nE '\b(eval|base64_decode|gzinflate|gzuncompress|gzdecode|str_rot13|shell_exec|passthru|proc_open|popen|system|exec|pcntl_exec|assert|create_function|move_uploaded_file|curl_exec|file_put_contents)\s*\(' \
         index.php SmkThemePlugin.php || true
@@ -173,7 +163,6 @@ if [ -n "$bad_php" ]; then
     abort_deploy "Terdeteksi fungsi PHP terlarang/berbahaya: $bad_php"
 fi
 
-# 4. Pemindai tag PHP liar pada seluruh folder non-PHP (assets, js, locale, styles, templates)
 stray_php_tags=$(
     grep -rnE '<\?(php|=)|<script[^>]+language=["'\'']?php|\{php\}|\{include_php\}' \
         assets js locale styles templates || true
@@ -182,7 +171,6 @@ if [ -n "$stray_php_tags" ]; then
     abort_deploy "Terdeteksi tag kode PHP liar di dalam folder aset/template: $stray_php_tags"
 fi
 
-# 5. Pemindai injeksi kode dinamis pada JS & Template
 bad_js=$(
     grep -rnE '\beval\s*\(|new\s+Function\s*\(|\batob\s*\(|document\.write\s*\(' \
         js templates || true
@@ -191,7 +179,6 @@ if [ -n "$bad_js" ]; then
     abort_deploy "Terdeteksi pola injeksi JS mencurigakan pada js/ atau templates/: $bad_js"
 fi
 
-# 6. Pemindai kebocoran kredensial / token / username hosting
 leaked_secrets=$(
     grep -rnE 'kisf5786|USERNAME_CPANEL|KISI-SMK-[0-9A-F]{8}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|smtp_password\s*=' \
         .htaccess index.php README.md SmkThemePlugin.php version.xml .cpanel.yml assets js locale styles templates || true
@@ -200,7 +187,6 @@ if [ -n "$leaked_secrets" ]; then
     abort_deploy "Terdeteksi potensi kredensial/token sensitif di dalam file: $leaked_secrets"
 fi
 
-# 7. Verifikasi penuh daftar file & checksum kriptografi SHA-256
 verify_manifest_and_hashes "$REPO_ROOT" "repository smkTheme"
 
 printf '[OK] Gatekeeper keamanan smkTheme LOLOS: SHA-256 valid, 0 file asing, 0 pola webshell.\n'

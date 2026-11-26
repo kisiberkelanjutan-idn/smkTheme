@@ -1,4 +1,3 @@
-# Deny all direct HTTP requests to locale files (OJS reads .po files directly from filesystem)
 <IfModule mod_authz_core.c>
     Require all denied
 </IfModule>

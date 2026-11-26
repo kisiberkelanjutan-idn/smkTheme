@@ -1,11 +1,3 @@
-/* ==========================================================================
-   MASTER STYLESHEET - KISI BERKELANJUTAN (SMK CHILD THEME - OJS 3.5)
-   Versi Bersih Terpadu: Radiant Hero Light, Grid 4 Kolom & Responsif Penuh
-   ========================================================================== */
-
-/* --------------------------------------------------------------------------
-   1. RESET GLOBAL, PENGHAPUS GARIS VERTIKAL TEMA & PEMBATAS HALAMAN
-   -------------------------------------------------------------------------- */
 body {
     font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
     color: #212121 !important;
@@ -21,7 +13,6 @@ img {
     height: auto !important;
 }
 
-/* Menyembunyikan teks "Skip to main content..." & judul pembaca layar */
 .pkp_screen_reader,
 .sr-only,
 .cmp_skip_to_content,
@@ -41,7 +32,6 @@ img {
     display: none !important;
 }
 
-/* Menghapus semua garis vertikal & horizontal bawaan Default Theme */
 .pkp_structure_page,
 .pkp_structure_content,
 .pkp_structure_main,
@@ -78,7 +68,6 @@ img {
     background-color: #ffffff !important;
 }
 
-/* Membuka lebar penuh khusus Halaman Depan & menyembunyikan ruang sidebar kosong */
 body.pkp_page_index .pkp_structure_content,
 body.pkp_page_index .pkp_structure_main,
 .pkp_structure_content:has(.page_index_journal),
@@ -97,7 +86,6 @@ body.pkp_page_index .pkp_structure_sidebar {
     display: none !important;
 }
 
-/* Mengatur halaman selain Beranda agar rapi di tengah */
 body:not(.pkp_page_index) .pkp_structure_content {
     width: 100% !important;
     max-width: 1320px !important;
@@ -115,7 +103,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     padding: 0 !important;
 }
 
-/* Breadcrumbs bersih tanpa garis bawah di semua halaman */
 .cmp_breadcrumbs,
 .cmp_breadcrumbs ol,
 .cmp_breadcrumbs * {
@@ -150,9 +137,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     text-decoration: none !important;
 }
 
-/* --------------------------------------------------------------------------
-   2. HEADER & NAVIGASI PROPORSIONAL (SEJAJAR LURUS DENGAN KONTEN)
-   -------------------------------------------------------------------------- */
 .pkp_structure_head {
     background-color: #ffffff !important;
     border: none !important;
@@ -338,9 +322,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     border: none !important;
 }
 
-/* ==========================================================================
-   USER NAVIGATION & DROPDOWN MENU PROFESIONAL (RESPONSIF DESKTOP & HP)
-   ========================================================================== */
 .pkp_structure_head > .pkp_navigation_user_wrapper,
 .pkp_head_wrapper .pkp_navigation_user_wrapper,
 .pkp_site_nav_menu .pkp_navigation_user_wrapper {
@@ -374,7 +355,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     list-style: none !important;
 }
 
-/* Tombol Utama User (Trigger) */
 .pkp_navigation_user > li > a {
     background-color: #0076c6 !important;
     color: #ffffff !important;
@@ -398,7 +378,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     color: #ffffff !important;
 }
 
-/* Lencana Angka Notifikasi (Badge 0) di Dalam Tombol User */
 .pkp_navigation_user > li > a .task_count,
 .pkp_navigation_user > li > a span {
     background-color: rgba(0, 0, 0, 0.22) !important;
@@ -415,7 +394,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     box-sizing: border-box !important;
 }
 
-/* Kotak Dropdown Menu (Default Desktop: Rata Kanan) */
 .pkp_navigation_user ul,
 .pkp_navigation_user > li > ul {
     position: absolute !important;
@@ -437,7 +415,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     transform: none !important;
 }
 
-/* Segitiga Penunjuk (Pointer Caret) di Desktop */
 .pkp_navigation_user ul::before,
 .pkp_navigation_user > li > ul::before {
     content: "" !important;
@@ -455,7 +432,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     pointer-events: none !important;
 }
 
-/* Jembatan Hover Tak Terlihat */
 .pkp_navigation_user ul::after,
 .pkp_navigation_user > li > ul::after {
     content: "" !important;
@@ -473,7 +449,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     display: block !important;
 }
 
-/* Baris Item di Dalam Dropdown */
 .pkp_navigation_user ul li {
     margin: 0 !important;
     padding: 0 !important;
@@ -490,7 +465,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     border-top: 1px solid #f1f5f9 !important;
 }
 
-/* Teks Link & Lencana Angka di Dalam Dropdown (Sejajar Rapi) */
 .pkp_navigation_user ul li a {
     background: transparent !important;
     color: #0b659e !important;
@@ -536,10 +510,6 @@ body:not(.pkp_page_index) .pkp_structure_main {
     text-decoration: none !important;
 }
 
-/* ==========================================================================
-   KHUSUS TAMPILAN HANDPHONE & TABLET (<= 992px):
-   Balik titik tumpu dropdown ke KIRI agar tidak terpotong keluar layar
-   ========================================================================== */
 @media (max-width: 992px) {
     .pkp_navigation_user ul,
     .pkp_navigation_user > li > ul {
@@ -555,11 +525,7 @@ body:not(.pkp_page_index) .pkp_structure_main {
         right: auto !important;
     }
 }
-/* ==========================================================================
-   MENGHILANGKAN GARIS PEMISAH HEADER & MENYATUKAN CAHAYA HERO KE ATAS LAYAR
-   ========================================================================== */
 
-/* 1. Hapus garis bawah pada header dan buat latar header transparan di Beranda */
 .pkp_structure_head,
 .pkp_head_wrapper,
 .pkp_navigation_primary_row,
@@ -578,19 +544,15 @@ body.pkp_page_index .pkp_structure_head,
     z-index: 10 !important;
 }
 
-/* 2. Biarkan pendaran cahaya naik halus ke belakang header agar tidak terpotong garis */
 .elife-hero-section {
     overflow: visible !important;
 }
 
 .elife-hero-section::before,
 .elife-hero-section::after {
-    top: -120px !important; /* Menarik pendaran cahaya ke atas melewati area header */
+    top: -120px !important; 
 }
 
-/* ==========================================================================
-   MENGHILANGKAN GARIS PEMBATAS DI BAWAH MENU NAVIGASI HALAMAN DEPAN
-   ========================================================================== */
 .page_index_journal .pkp_structure_head,
 .page_index_journal header,
 .page_index_journal .pkp_navigation_primary_row,
@@ -600,17 +562,12 @@ body.pkp_page_index .pkp_structure_head,
     box-shadow: none !important;
 }
 
-/* Menghilangkan garis tambahan jika menggunakan pseudo-element */
 .page_index_journal header::after,
 .pkp_structure_head::after {
     display: none !important;
     content: none !important;
 }
 
-/* --------------------------------------------------------------------------
-   3. HERO SECTION BARU: PANCARAN CAHAYA & GELOMBANG DARI SUDUT KANAN KE TENGAH
-   (Pattern geometris lama telah dihapus total & diganti efek cahaya baru)
-   -------------------------------------------------------------------------- */
 .elife-hero-section {
     position: relative !important;
     background-color: #ffffff !important;
@@ -622,7 +579,6 @@ body.pkp_page_index .pkp_structure_head,
     isolation: isolate !important;
 }
 
-/* Lapisan 1: Pendaran Cahaya Hangat (Ambient Radial Glow) dari Sudut Kanan Bawah ke Tengah */
 .elife-hero-section::before {
     content: "" !important;
     position: absolute !important;
@@ -639,7 +595,6 @@ body.pkp_page_index .pkp_structure_head,
     pointer-events: none !important;
 }
 
-/* Lapisan 2: Garis Busur Gelombang Cahaya Konsentris (Sesuai Visual Mockup) */
 .elife-hero-section::after {
     content: "" !important;
     position: absolute !important;
@@ -756,9 +711,6 @@ body.pkp_page_index .pkp_structure_head,
     color: #cccccc !important;
 }
 
-/* --------------------------------------------------------------------------
-   4. WADAH KONTEN UTAMA & GAYA HEADER SECTION (TANPA GARIS BAWAH)
-   -------------------------------------------------------------------------- */
 .elife-content-container {
     width: 100% !important;
     max-width: 1280px !important;
@@ -814,9 +766,6 @@ body.pkp_page_index .pkp_structure_head,
     margin-left: 4px !important;
 }
 
-/* --------------------------------------------------------------------------
-   5. LATEST RESEARCH (HOMEPAGE) - GRID 3 KOLOM & TOMBOL FULL-TEXT
-   -------------------------------------------------------------------------- */
 .elife-native-toc,
 .elife-native-toc .issue-toc {
     border: none !important;
@@ -996,9 +945,6 @@ body.pkp_page_index .pkp_structure_head,
     border-color: #0076c6 !important;
 }
 
-/* --------------------------------------------------------------------------
-   6. LATEST ANNOUNCEMENTS - LURUS VERTIKAL & TANPA GARIS KOTAK/PEMISAH
-   -------------------------------------------------------------------------- */
 .elife-latest-announcements {
     margin-top: 55px !important;
     margin-bottom: 40px !important;
@@ -1086,9 +1032,6 @@ body.pkp_page_index .pkp_structure_head,
     border: none !important;
 }
 
-/* --------------------------------------------------------------------------
-   7. HALAMAN STATIS (EDITORIAL, POLICIES) & SIDEBAR
-   -------------------------------------------------------------------------- */
 .pkp_structure_sidebar {
     border: none !important;
 }
@@ -1166,9 +1109,6 @@ body.pkp_page_index .pkp_structure_head,
     margin: 0 !important;
 }
 
-/* --------------------------------------------------------------------------
-   8. FOOTER DENGAN LATAR #ddd
-   -------------------------------------------------------------------------- */
 .pkp_structure_footer_wrapper,
 .pkp_structure_footer {
     background-color: #ddd !important;
@@ -1205,9 +1145,6 @@ body.pkp_page_index .pkp_structure_head,
 .elife-footer-nav ul li a:hover { color: #e22d48 !important; }
 .pkp_structure_footer .pkp_brand_footer { display: none !important; }
 
-/* --------------------------------------------------------------------------
-   9. TATA LETAK HALAMAN ARTIKEL & FULLTEXT 3 KOLOM ALA FRONTIERS
-   -------------------------------------------------------------------------- */
 body.pkp_page_article .pkp_structure_content {
     max-width: 1320px !important;
     margin: 35px auto 80px auto !important;
@@ -1692,7 +1629,6 @@ body.pkp_page_article .pkp_structure_content {
     }
 }
 
-/* URUTAN KOLOM FULL-TEXT KHUSUS LAYAR <= 763PX (Tengah -> Kiri -> Kanan) */
 @media (max-width: 763px) {
     .obj_article_details.frontiers-layout {
         display: flex !important;
@@ -1724,9 +1660,6 @@ body.pkp_page_article .pkp_structure_content {
     }
 }
 
-/* --------------------------------------------------------------------------
-   10. FGV OPENRANK: 5 JEJERAN KE SAMPING & BERSIH DARI TAB/PAGINATION
-   -------------------------------------------------------------------------- */
 .elife-openrank-wrapper {
     width: 100% !important;
     margin: 45px 0 20px 0 !important;
@@ -1847,9 +1780,6 @@ body.pkp_page_article .pkp_structure_content {
     line-height: 1.4 !important;
 }
 
-/* --------------------------------------------------------------------------
-   11. SIMILAR ARTICLES - GRID 3 KOLOM KARTU RINGKAS
-   -------------------------------------------------------------------------- */
 .elife-similar-wrapper,
 #articlesBySimilarity {
     width: 100% !important;
@@ -1974,9 +1904,6 @@ body.pkp_page_article ul:has(li a[href*="/article/view/"]):has(li a[href*="/issu
     background-color: #f8f9fa !important;
 }
 
-/* --------------------------------------------------------------------------
-   12. HALAMAN KATEGORI SDGs & PANEL ANALITIK (GRID 4 KOLOM PROPORSIONAL)
-   -------------------------------------------------------------------------- */
 div.page.page_catalog_category {
     max-width: 1320px !important;
     margin: 35px auto 80px auto !important;
@@ -2229,9 +2156,6 @@ div.page.page_catalog_category ul.cmp_article_list.articles .stats {
     transition: width 0.6s ease !important;
 }
 
-/* --------------------------------------------------------------------------
-   13. HALAMAN ARCHIVES (GRID 4 KOLOM DI PC & 1 KOLOM PENUH DI HP)
-   -------------------------------------------------------------------------- */
 div.page.page_issue_archive {
     max-width: 1320px !important;
     margin: 35px auto 80px auto !important;
@@ -2357,9 +2281,6 @@ div.page.page_issue_archive .obj_issue_summary .description a {
     word-break: break-all !important;
 }
 
-/* --------------------------------------------------------------------------
-   14. HALAMAN ISSUE VIEW (DAFTAR ARTIKEL TERBITAN - GRID 4 KOLOM)
-   -------------------------------------------------------------------------- */
 div.page.page_issue {
     max-width: 1320px !important;
     margin: 35px auto 80px auto !important;
@@ -2368,7 +2289,6 @@ div.page.page_issue {
     border: none !important;
 }
 
-/* Hilangkan semua garis pembatas di atas judul / di bawah breadcrumb Issue View */
 div.page.page_issue > h1,
 div.page.page_issue .obj_issue_toc,
 div.page.page_issue .obj_issue_toc .heading,
@@ -2453,7 +2373,6 @@ div.page.page_issue .obj_article_summary {
     background: transparent !important;
 }
 
-/* Urutan 1: Label Kategori di Paling Atas (Di Atas Gambar Sampul) */
 div.page.page_issue .kisi-category-badge {
     order: -10 !important;
     display: flex !important;
@@ -2478,7 +2397,6 @@ div.page.page_issue .kisi-category-badge span {
     text-overflow: ellipsis !important;
 }
 
-/* Urutan 2: Gambar Sampul Sejajar Rata */
 div.page.page_issue .obj_article_summary .cover {
     order: 1 !important;
     float: none !important;
@@ -2504,7 +2422,6 @@ div.page.page_issue .obj_article_summary .cover img {
     object-fit: contain !important;
 }
 
-/* Urutan 3: Judul Artikel */
 div.page.page_issue .obj_article_summary .title {
     order: 2 !important;
     margin: 0 0 6px 0 !important;
@@ -2525,7 +2442,6 @@ div.page.page_issue .obj_article_summary .title a:hover {
     color: #0066cc !important;
 }
 
-/* Urutan 4: Nomor Halaman (e...) Pas di Bawah Judul */
 div.page.page_issue .kisi-pages-badge,
 .page_index_journal .kisi-pages-badge {
     order: 3 !important;
@@ -2546,7 +2462,6 @@ div.page.page_issue .kisi-pages-badge span,
     border-radius: 4px !important;
 }
 
-/* Urutan 5: Nama Penulis */
 div.page.page_issue .obj_article_summary .meta {
     order: 4 !important;
     width: 100% !important;
@@ -2569,7 +2484,6 @@ div.page.page_issue .obj_article_summary .meta .authors {
     word-break: break-word !important;
 }
 
-/* Urutan 6: Tombol Full-Text di Paling Bawah Kartu */
 div.page.page_issue .obj_article_summary .galleys_links,
 .page_index_journal .obj_article_summary .galleys_links {
     order: 5 !important;
@@ -2622,9 +2536,6 @@ a.kisi-fulltext-btn:hover {
     border-color: #1a6bc4 !important;
 }
 
-/* --------------------------------------------------------------------------
-   15. RESPONSIVITAS TERPADU SELURUH HALAMAN (WAJIB DI PALING BAWAH)
-   -------------------------------------------------------------------------- */
 @media (max-width: 1100px) {
     html body div.page.page_issue_archive ul.issues_archive,
     html body div.page.page_issue .sections,
@@ -2718,9 +2629,6 @@ a.kisi-fulltext-btn:hover {
     }
 }
 
-/* ==========================================================================
-   KARTU REVIEW EDITOR (FOTO, NAMA LENGKAP & AFILIASI) DI HALAMAN FULL-TEXT
-   ========================================================================== */
 .frontiers-editor-list {
     display: flex !important;
     flex-direction: column !important;
@@ -2730,7 +2638,7 @@ a.kisi-fulltext-btn:hover {
 
 .frontiers-editor-item {
     display: flex !important;
-    align-items: flex-start !important; /* Diubah ke flex-start agar foto tetap di atas jika teks panjang */
+    align-items: flex-start !important; 
     gap: 12px !important;
     padding-bottom: 12px !important;
     border-bottom: 1px solid #f0f2f5 !important;
@@ -2741,7 +2649,6 @@ a.kisi-fulltext-btn:hover {
     border-bottom: none !important;
 }
 
-/* Bingkai Foto Bulat & Fallback Inisial */
 .frontiers-editor-avatar {
     width: 44px !important;
     height: 44px !important;
@@ -2758,7 +2665,7 @@ a.kisi-fulltext-btn:hover {
     overflow: hidden !important;
     box-sizing: border-box !important;
     flex-shrink: 0 !important;
-    margin-top: 2px !important; /* Sedikit penyesuaian posisi vertikal agar pas dengan baris teks pertama */
+    margin-top: 2px !important; 
 }
 
 .frontiers-editor-photo {
@@ -2796,9 +2703,6 @@ a.kisi-fulltext-btn:hover {
     margin-top: 3px !important;
 }
 
-/* ==========================================================================
-   FULL-TEXT XML RENDERER (BODY TEXT, TABEL ILMIAH & FIGURE ALA FRONTIERS)
-   ========================================================================== */
 .kisi-xml-fulltext {
     font-size: 1rem !important;
     line-height: 1.8 !important;
@@ -2842,7 +2746,6 @@ a.kisi-fulltext-btn:hover {
     margin-bottom: 6px !important;
 }
 
-/* Sitasi Dalam Teks ([1], Figure 1, Table 1) */
 .kisi-xref {
     color: #1a6bc4 !important;
     font-weight: 600 !important;
@@ -2856,7 +2759,6 @@ a.kisi-fulltext-btn:hover {
     color: #0d4a8f !important;
 }
 
-/* Bingkai Gambar / Figure Ilmiah */
 .kisi-xml-figure {
     margin: 28px 0 !important;
     padding: 18px !important;
@@ -2897,7 +2799,6 @@ a.kisi-fulltext-btn:hover {
     font-size: 0.82rem !important;
 }
 
-/* Bingkai Tabel Ilmiah (Booktabs Style & Responsive Scroll) */
 .kisi-xml-table-wrap {
     margin: 30px 0 !important;
     background-color: #ffffff !important;
@@ -2963,9 +2864,6 @@ a.kisi-fulltext-btn:hover {
     line-height: 1.45 !important;
 }
 
-/* ==========================================================================
-   JOURNAL USAGE & IMPACT STATISTICS DASHBOARD (COUNTER R5 / FRONTIERS STYLE)
-   ========================================================================== */
 div#kisi-journal-stats-page,
 div#kisi-stats-dashboard-rendered,
 .kisi-stats-wrap {
@@ -2975,9 +2873,6 @@ div#kisi-stats-dashboard-rendered,
     display: block !important;
 }
 
-/* ==========================================================================
-   ALTERNATIF: SOFT TERRACOTTA & WARM AMBER BANNER
-   ========================================================================== */
 div#kisi-journal-stats-page .kisi-stats-header-banner,
 .kisi-stats-header-banner {
     background: linear-gradient(
@@ -3043,7 +2938,6 @@ div#kisi-journal-stats-page .kisi-stats-period-badge,
     color: #1f1610 !important;
 }
 
-/* 4 Kartu KPI Utama */
 div#kisi-journal-stats-page .kisi-stats-kpi-grid,
 .kisi-stats-kpi-grid {
     display: grid !important;
@@ -3121,7 +3015,6 @@ div#kisi-journal-stats-page .kisi-stats-kpi-card::before,
     line-height: 1.4 !important;
 }
 
-/* Baris Metrik Sekunder (Rasio & Cakupan Terbitan) */
 div#kisi-journal-stats-page .kisi-stats-secondary-grid,
 .kisi-stats-secondary-grid {
     display: grid !important;
@@ -3141,7 +3034,7 @@ div#kisi-journal-stats-page .kisi-stats-secondary-grid,
 .kisi-stats-mini-val {
     font-size: 1.3rem !important;
     font-weight: 800 !important;
-    color: #d9531e !important; /* Oranye terakota khas Kisi Berkelanjutan */
+    color: #d9531e !important; 
     line-height: 1.2 !important;
     margin-bottom: 2px !important;
 }
@@ -3152,7 +3045,6 @@ div#kisi-journal-stats-page .kisi-stats-secondary-grid,
     text-transform: uppercase !important;
 }
 
-/* Layout 2 Panel Bawah (Distribusi per Terbitan & Top Artikel) */
 div#kisi-journal-stats-page .kisi-stats-panels-grid,
 .kisi-stats-panels-grid {
     display: grid !important;
@@ -3267,10 +3159,6 @@ div#kisi-journal-stats-page .kisi-stats-panels-grid,
     }
 }
 
-
-/* ==========================================================================
-   FRONTIERS-STYLE HOMEPAGE STATS BAR (SOFT WARM GLASSMORPHISM)
-   ========================================================================== */
 div#kisi-home-frontiers-stats,
 .kisi-frontiers-stats-bar {
     display: grid !important;
@@ -3362,11 +3250,6 @@ div#kisi-home-frontiers-stats a.kisi-frontiers-stat-item .kisi-frontiers-stat-la
     }
 }
 
-/* ==========================================================================
-   KONSEP 2: SOFT TERRACOTTA & WARM AMBER GLOW (HALAMAN STATISTICS & SDGs)
-   ========================================================================== */
-
-/* 1. Banner Utama Halaman Statistics & Banner Analitik SDGs */
 div#kisi-journal-stats-page .kisi-stats-header-banner,
 .kisi-stats-header-banner,
 .kisi-sdg-header-banner {
@@ -3391,7 +3274,6 @@ div#kisi-journal-stats-page .kisi-stats-header-banner,
     gap: 20px !important;
 }
 
-/* Ornamen Lingkaran & Gelombang Halus di Latar Belakang Banner (Sesuai Konsep 2) */
 div#kisi-journal-stats-page .kisi-stats-header-banner::before,
 .kisi-stats-header-banner::before,
 .kisi-sdg-header-banner::before {
@@ -3432,7 +3314,6 @@ div#kisi-journal-stats-page .kisi-stats-header-info p,
     line-height: 1.55 !important;
 }
 
-/* Kotak Badge Kanan (Cumulative Tracking Period & UN 2030 Agenda) */
 div#kisi-journal-stats-page .kisi-stats-period-badge,
 .kisi-stats-period-badge {
     position: relative !important;
@@ -3464,7 +3345,6 @@ div#kisi-journal-stats-page .kisi-stats-period-badge,
     color: #1f1610 !important;
 }
 
-/* Nilai Kartu Sekunder Statistics */
 .kisi-stats-mini-card,
 .kisi-stats-mini-card {
     background-color: #fffaf5 !important;
@@ -3479,7 +3359,6 @@ div#kisi-journal-stats-page .kisi-stats-period-badge,
     margin-bottom: 2px !important;
 }
 
-/* 2. Penyesuaian Halaman Kategori SDGs Mengikuti Konsep 2 */
 div.page.page_catalog_category .article_count {
     font-size: 0.88rem !important;
     font-weight: 800 !important;
@@ -3550,22 +3429,17 @@ div.page.page_catalog_category ul.cmp_article_list.articles .title a:hover {
     color: #d9531e !important;
 }
 
-/* ==========================================================================
-   HALAMAN LOGIN PROFESIONAL ALA FRONTIERS (CENTERED CARD LAYOUT)
-   ========================================================================== */
 body.pkp_page_login,
 body:has(.page_login) {
     background-color: #f4f6f8 !important;
 }
 
-/* Sembunyikan breadcrumb & catatan asterisk bawaan OJS di halaman login */
 .page_login .cmp_breadcrumbs,
 .page_login .pkp_form_required,
 .page_login .description {
     display: none !important;
 }
 
-/* Kartu Putih Utama di Tengah Halaman */
 div.page.page_login {
     width: 100% !important;
     max-width: 660px !important;
@@ -3579,7 +3453,6 @@ div.page.page_login {
     text-align: center !important;
 }
 
-/* Judul "Login" di Tengah */
 div.page.page_login > h1 {
     font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 1.75rem !important;
@@ -3591,7 +3464,6 @@ div.page.page_login > h1 {
     text-align: center !important;
 }
 
-/* Subjudul "Don't have an account? Register" */
 .kisi-login-register-prompt {
     font-size: 0.94rem !important;
     color: #4b5563 !important;
@@ -3610,7 +3482,6 @@ div.page.page_login > h1 {
     text-decoration: underline !important;
 }
 
-/* Pembatas Lebar Kolom Input di Tengah Kartu (360px) */
 div.page.page_login form.cmp_form,
 div.page.page_login form#login {
     width: 100% !important;
@@ -3635,7 +3506,6 @@ div.page.page_login .password {
     position: relative !important;
 }
 
-/* Sembunyikan teks label di atas kotak karena sudah menjadi placeholder */
 div.page.page_login .username > label > span.label,
 div.page.page_login .username > label > span.required,
 div.page.page_login .password > label > span.label,
@@ -3643,7 +3513,6 @@ div.page.page_login .password > label > span.required {
     display: none !important;
 }
 
-/* Kotak Input Email & Password */
 div.page.page_login input[type="text"],
 div.page.page_login input[type="password"],
 div.page.page_login input[type="email"] {
@@ -3674,7 +3543,6 @@ div.page.page_login input[type="password"]:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
 }
 
-/* Tombol Ikon Mata (Show/Hide Password) */
 .kisi-pwd-toggle-btn {
     position: absolute !important;
     right: 12px !important;
@@ -3696,7 +3564,6 @@ div.page.page_login input[type="password"]:focus {
     color: #111111 !important;
 }
 
-/* Baris Sejajar: Remember Me (Kiri) & Forgot Password (Kanan) */
 .kisi-login-options-row {
     display: flex !important;
     align-items: center !important;
@@ -3744,7 +3611,6 @@ div.page.page_login .password a:hover {
     text-decoration: underline !important;
 }
 
-/* Area Tombol Submit Kapsul (Pill Button) di Tengah */
 div.page.page_login .buttons {
     display: flex !important;
     justify-content: center !important;
@@ -3754,7 +3620,6 @@ div.page.page_login .buttons {
     width: 100% !important;
 }
 
-/* Sembunyikan link Register lama di samping tombol karena sudah dipindah ke atas */
 div.page.page_login .buttons a.register {
     display: none !important;
 }
@@ -3787,9 +3652,7 @@ div.page.page_login .buttons input[type="submit"]:hover {
         width: auto !important;
     }
 }
-/* ==========================================================================
-   PERBAIKAN PAGESPEED: FONT-DISPLAY SWAP & DIMENSI GAMBAR FOOTER
-   ========================================================================== */
+
 @font-face {
     font-family: 'FontAwesome';
     src: url('/lib/pkp/lib/vendor/components/font-awesome/fonts/fontawesome-webfont.woff2?v=4.7.0') format('woff2');
@@ -3798,7 +3661,6 @@ div.page.page_login .buttons input[type="submit"]:hover {
     font-display: swap !important;
 }
 
-/* Kunci dimensi eksplisit logo SDG Publishers Compact di Footer agar bebas CLS */
 .pkp_footer_content img[src*="sdg-publishers-compact"],
 .elife-footer-container img[src*="sdg-publishers-compact"] {
     width: 80px !important;
@@ -3808,29 +3670,24 @@ div.page.page_login .buttons input[type="submit"]:hover {
     object-fit: contain !important;
 }
 
-/* Kunci dimensi eksplisit logo Header agar proporsional */
 .pkp_site_name img {
     width: auto !important;
     height: 52px !important;
     max-height: 52px !important;
     aspect-ratio: 436 / 163 !important;
 }
-/* ==========================================================================
-   HALAMAN REGISTER PROFESIONAL ALA FRONTIERS (CENTERED CARD LAYOUT)
-   ========================================================================== */
+
 body.pkp_page_user.pkp_op_register,
 body:has(.page_register) {
     background-color: #f4f6f8 !important;
 }
 
-/* Sembunyikan breadcrumb & catatan asterisk bawaan OJS di halaman register */
 .page_register .cmp_breadcrumbs,
 .page_register .pkp_form_required,
 .page_register .required_label {
     display: none !important;
 }
 
-/* Kartu Putih Utama Register di Tengah Halaman */
 div.page.page_register {
     width: 100% !important;
     max-width: 680px !important;
@@ -3843,7 +3700,6 @@ div.page.page_register {
     box-sizing: border-box !important;
 }
 
-/* Judul "Register" di Tengah */
 div.page.page_register > h1 {
     font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 1.8rem !important;
@@ -3855,7 +3711,6 @@ div.page.page_register > h1 {
     text-align: center !important;
 }
 
-/* Subjudul "Already have an account? Login" */
 .kisi-register-login-prompt {
     font-size: 0.94rem !important;
     color: #4b5563 !important;
@@ -3874,7 +3729,6 @@ div.page.page_register > h1 {
     text-decoration: underline !important;
 }
 
-/* Pembatas Lebar Formulir di Tengah Kartu */
 div.page.page_register form.cmp_form,
 div.page.page_register form#register {
     width: 100% !important;
@@ -3885,7 +3739,6 @@ div.page.page_register form#register {
     text-align: left !important;
 }
 
-/* Wadah Tombol ORCID & Link "What is ORCID?" Agar Rapi dan Tidak Terpotong */
 .kisi-orcid-connect-box,
 div.page.page_register .orcidProfile {
     display: flex !important;
@@ -3944,7 +3797,6 @@ div.page.page_register a#about-orcid:hover {
     text-decoration: underline !important;
 }
 
-/* Fieldset & Judul Seksi (Profile, Login, Consent) */
 div.page.page_register fieldset {
     border: none !important;
     margin: 0 0 26px 0 !important;
@@ -3963,7 +3815,6 @@ div.page.page_register fieldset legend {
     display: block !important;
 }
 
-/* Grid 2 Kolom di Desktop untuk Given Name + Family Name */
 @media (min-width: 600px) {
     div.page.page_register fieldset.identity .fields {
         display: grid !important;
@@ -3976,7 +3827,6 @@ div.page.page_register fieldset legend {
     }
 }
 
-/* Jarak Antar Field Input */
 div.page.page_register .fields > div,
 div.page.page_register fieldset > div {
     margin: 0 0 18px 0 !important;
@@ -3985,7 +3835,6 @@ div.page.page_register fieldset > div {
     position: relative !important;
 }
 
-/* Label di Atas Kotak Input (Bersih & Rapi) */
 div.page.page_register label > span.label {
     display: block !important;
     font-size: 0.84rem !important;
@@ -4002,7 +3851,6 @@ div.page.page_register label > span.required {
     margin-left: 2px !important;
 }
 
-/* Kotak Input Teks, Email, Password, & Dropdown Select Country */
 div.page.page_register input[type="text"],
 div.page.page_register input[type="email"],
 div.page.page_register input[type="password"],
@@ -4032,14 +3880,12 @@ div.page.page_register select:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
 }
 
-/* Wadah Relatif Input Password untuk Ikon Mata */
 .kisi-reg-pwd-wrap {
     position: relative !important;
     display: block !important;
     width: 100% !important;
 }
 
-/* Kotak Centang Persetujuan (Consent & Reviewer Options) */
 div.page.page_register .cmp_form .options label,
 div.page.page_register fieldset.consent label,
 div.page.page_register .optin label {
@@ -4063,7 +3909,6 @@ div.page.page_register input[type="checkbox"] {
     cursor: pointer !important;
 }
 
-/* Area Tombol Submit Kapsul (Pill Button) di Tengah Bawah */
 div.page.page_register .buttons {
     display: flex !important;
     justify-content: center !important;
@@ -4073,7 +3918,6 @@ div.page.page_register .buttons {
     width: 100% !important;
 }
 
-/* Sembunyikan link Login lama di samping tombol bawah karena sudah dipindah ke atas */
 div.page.page_register .buttons a.login {
     display: none !important;
 }
@@ -4106,9 +3950,7 @@ div.page.page_register .buttons input[type="submit"]:hover {
         width: auto !important;
     }
 }
-/* ==========================================================================
-   PANEL ANALITIK KUNJUNGAN HARIAN (DAILY VISITS & READERSHIP TREND - KONSEP 2)
-   ========================================================================== */
+
 .kisi-daily-analytics-panel {
     background-color: #ffffff !important;
     border: 1px solid rgba(217, 83, 30, 0.22) !important;
@@ -4156,7 +3998,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     margin-right: 4px !important;
 }
 
-/* Tombol Filter 7 / 14 / 30 Hari */
 .kisi-daily-range-tabs {
     display: inline-flex !important;
     background-color: #fff5eb !important;
@@ -4184,7 +4025,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     color: #ffffff !important;
 }
 
-/* 4 Kotak Ringkasan Harian di Atas Grafik */
 .kisi-daily-summary-strip {
     display: grid !important;
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -4224,7 +4064,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     margin-top: 3px !important;
 }
 
-/* Area Grafik Batang Interaktif */
 .kisi-daily-chart-container {
     width: 100% !important;
     padding: 16px 10px 8px 10px !important;
@@ -4281,7 +4120,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     box-shadow: 0 2px 6px rgba(217, 83, 30, 0.15) !important;
 }
 
-/* Segmen Bawah Batang: Proporsi Pembacaan Artikel (Views + PDF) */
 .kisi-daily-bar-reads {
     width: 100% !important;
     background: rgba(255, 255, 255, 0.28) !important;
@@ -4318,7 +4156,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     font-weight: 800 !important;
 }
 
-/* Tooltip Melayang Saat Bar Disorot */
 .kisi-daily-tooltip {
     position: absolute !important;
     bottom: calc(100% + 6px) !important;
@@ -4344,7 +4181,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     visibility: visible !important;
 }
 
-/* Legenda Grafik di Bawah */
 .kisi-daily-chart-legend {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -4389,9 +4225,7 @@ div.page.page_register .buttons input[type="submit"]:hover {
         grid-template-columns: 1fr !important;
     }
 }
-/* ==========================================================================
-   PANEL GEOGRAFIS NEGARA PENGUNJUNG & AKTIVITAS REAL-TIME (KONSEP 2)
-   ========================================================================== */
+
 .kisi-geo-live-grid {
     display: grid !important;
     grid-template-columns: 1.1fr 1.4fr !important;
@@ -4446,7 +4280,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     white-space: nowrap !important;
 }
 
-/* Efek Berdenyut (Pulse) pada Indikator Live */
 @keyframes kisiPulseGlow {
     0% { box-shadow: 0 0 0 0 rgba(76, 159, 56, 0.55); }
     70% { box-shadow: 0 0 0 7px rgba(76, 159, 56, 0); }
@@ -4462,7 +4295,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     animation: kisiPulseGlow 1.8s infinite !important;
 }
 
-/* Daftar Negara Pengunjung (Kiri) */
 .kisi-country-list {
     display: flex !important;
     flex-direction: column !important;
@@ -4539,7 +4371,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     transition: width 0.6s ease !important;
 }
 
-/* Stream Aktivitas Pengunjung Real-Time (Kanan) */
 .kisi-live-feed-list {
     display: flex !important;
     flex-direction: column !important;
@@ -4666,9 +4497,7 @@ div.page.page_register .buttons input[type="submit"]:hover {
         grid-template-columns: 1fr !important;
     }
 }
-/* ==========================================================================
-   HOMEPAGE: TOP 5 MOST READ & DOWNLOADED THIS MONTH (BENTO GRID 1 + 4)
-   ========================================================================== */
+
 .kisi-monthly-top-section {
     width: 100% !important;
     margin: 55px 0 40px 0 !important;
@@ -4729,7 +4558,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     text-decoration: underline !important;
 }
 
-/* Bento Grid: Kartu #1 Lebar Penuh di Atas, Kartu #2-#5 Grid 2x2 di Bawah */
 .kisi-monthly-bento-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -4759,7 +4587,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     border-color: #ff7a18 !important;
 }
 
-/* Kartu Peringkat #1 (Sorotan Utama / Featured) */
 .kisi-monthly-card.rank-1 {
     grid-column: 1 / -1 !important;
     background: linear-gradient(120deg, #ffffff 0%, #fffaf5 65%, #fff2e4 100%) !important;
@@ -4780,7 +4607,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     flex: 1 1 auto !important;
 }
 
-/* Lencana Angka Peringkat (01 - 05) */
 .kisi-monthly-rank-badge {
     width: 42px !important;
     height: 42px !important;
@@ -4861,7 +4687,6 @@ div.page.page_register .buttons input[type="submit"]:hover {
     color: #d9531e !important;
 }
 
-/* Baris Metrik di Bawah / Kanan Kartu */
 .kisi-monthly-metrics-footer {
     display: flex !important;
     align-items: center !important;
@@ -4942,9 +4767,7 @@ div.page.page_register .buttons input[type="submit"]:hover {
         justify-content: space-between !important;
     }
 }
-/* ==========================================================================
-   ATURAN TAMBAHAN DARI FOOTER.TPL & PENYEMPURNAAN CHILD THEME
-   ========================================================================== */
+
 .elife-latest-announcements,
 .pkp_structure_footer_wrapper {
     content-visibility: auto !important;
@@ -5061,7 +4884,6 @@ html body div.page.page_issue .obj_issue_toc hr {
     display: inline-block !important;
 }
 
-/* Lencana kode ISO negara lokal (pengganti flagcdn.com eksternal) */
 .kisi-country-iso-pill {
     display: inline-flex !important;
     align-items: center !important;

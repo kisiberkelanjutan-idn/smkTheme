@@ -1,11 +1,3 @@
-/**
- * plugins/themes/smkTheme/js/kisi-theme.js
- *
- * Hardened, modular frontend enhancements for SMK Child Theme (OJS 3.5).
- * - Zero inline CSS/JS injection, zero third-party IP/icon calls, CSP-compatible.
- * - Uses server-computed real OJS 3.5 metrics from #kisi-theme-data JSON payload.
- * - Sanitizes all dynamic DOM nodes and JATS XML output against XSS.
- */
 (function () {
     "use strict";
 
@@ -137,9 +129,6 @@
         return svg;
     }
 
-    /**
-     * Clone only safe inline elements (text, a, sup, sub, em, strong, span) from an element, preserving ROR badges safely.
-     */
     function cloneSafeRichTextFragment(sourceEl) {
         var frag = document.createDocumentFragment();
         if (!sourceEl) return frag;
@@ -259,9 +248,6 @@
         });
     }
 
-    /* ======================================================================
-     * BLOK F: STATISTICS DASHBOARD (REAL OJS 3.5 BACKEND DATA)
-     * ====================================================================== */
     function initStatisticsPage(themeData) {
         var existingStatsDiv = document.getElementById("kisi-journal-stats-page");
         var mainPageDiv =
@@ -410,7 +396,6 @@
                 '</div>' +
             '</div>';
 
-        // Daily series chart
         var dailySeries30 = Array.isArray(fullStats.dailySeries30) ? fullStats.dailySeries30 : [];
         if (dailySeries30.length > 0) {
             var lastDay = dailySeries30[dailySeries30.length - 1];
@@ -474,7 +459,6 @@
             if (stageEl) stageEl.innerHTML = '<div style="padding:20px; color:#666; font-size:0.86rem;">No compiled daily statistics available yet.</div>';
         }
 
-        // Top countries (real OJS geo table only; zero third-party image CDN)
         var countryListEl = document.getElementById("kisi-country-ranking-list");
         var topCountries = Array.isArray(fullStats.topCountries) ? fullStats.topCountries : [];
         if (countryListEl) {
@@ -508,7 +492,6 @@
             }
         }
 
-        // Issues breakdown table
         var issuesBox = document.getElementById("kisi-stat-issues-table-box");
         var issuesBreakdown = Array.isArray(fullStats.issuesBreakdown) ? fullStats.issuesBreakdown : [];
         if (issuesBox) {
@@ -524,7 +507,6 @@
             }
         }
 
-        // Top 10 articles table
         var topBox = document.getElementById("kisi-stat-top-articles-box");
         var topArticles = Array.isArray(fullStats.topArticles10) ? fullStats.topArticles10 : [];
         if (topBox) {
@@ -541,9 +523,6 @@
         }
     }
 
-    /* ======================================================================
-     * BLOK A: ARTICLE 3-COLUMN LAYOUT & HARDENED JATS XML RENDERER
-     * ====================================================================== */
     function buildXmlInlineFragment(xmlNode) {
         var frag = document.createDocumentFragment();
         if (!xmlNode) return frag;
@@ -816,7 +795,6 @@
                 return true;
             }
 
-            // Explicit parser for viewcounter plugin leaf nodes (avoids concatenating views + downloads + .viewcounter-sr)
             containerEl.querySelectorAll(".viewcounter-sr").forEach(function (el) {
                 var srTxt = (el.textContent || "").trim();
                 var mV = srTxt.match(/^views?\s*:\s*([\d.,]+)/i);
@@ -1249,7 +1227,6 @@
             }
             centerMain.appendChild(bottomMeta);
 
-            // Left rail cards
             var issueTitleText = issueItem && issueItem.querySelector(".value")
                 ? issueItem.querySelector(".value").textContent.trim()
                 : (themeData.journalName || "Kisi Berkelanjutan");
@@ -1272,7 +1249,6 @@
                 }
             }
 
-            // Editorial matcher (safe DOM rendering)
             var editorialPlaceHolder = document.createElement("div");
             leftRail.appendChild(editorialPlaceHolder);
 
@@ -1460,7 +1436,6 @@
                 editorialPlaceHolder.remove();
             }
 
-            // Real article metrics from PHP backend + clean DOM/TOC fallback only when PHP metrics are empty
             var metricsCard = document.createElement("div");
             metricsCard.className = "frontiers-card";
             var artMetrics = articleData.metrics || {};
@@ -1621,7 +1596,6 @@
                 renderOutlineCard();
             }
 
-            // Right rail
             var rightCard = document.createElement("div");
             rightCard.className = "frontiers-card";
             if (coverImg) rightCard.appendChild(coverImg);
@@ -1632,7 +1606,6 @@
             rightRail.appendChild(infoBanner);
             rightRail.appendChild(metricsCard);
 
-            // SDGs contribution card using local SVG assets
             var detectedSdgs = Array.isArray(articleData.sdgNumbers) && articleData.sdgNumbers.length > 0
                 ? articleData.sdgNumbers
                 : extractSdgsFromSubjects(subjectCandidateTags.join(" ; "));
@@ -1813,13 +1786,9 @@
                 })(issueLinks, currentSlugs, initialViews, initialDownloads);
             }
         } catch (err) {
-            // Preserve default layout cleanly if anything unexpected fails
         }
     }
 
-    /* ======================================================================
-     * BLOK B: SDGs CATEGORY PAGE (SERVER-MAPPED SUBJECTS, ZERO N+1 FETCH)
-     * ====================================================================== */
     function initCatalogCategoryPage(themeData) {
         var catalogPage = document.querySelector("div.page.page_catalog_category");
         if (!catalogPage) return;
@@ -1925,9 +1894,6 @@
         }
     }
 
-    /* ======================================================================
-     * BLOK C: SIMILAR ARTICLES 3-COLUMN CARDS
-     * ====================================================================== */
     function initSimilarArticles() {
         var simUl = null;
         var simHeading = null;
@@ -2016,9 +1982,6 @@
         }
     }
 
-    /* ======================================================================
-     * BLOK D: HOMEPAGE & ISSUE VIEW (USING REAL PHP BACKEND STATS)
-     * ====================================================================== */
     function initIssueAndHomePages(themeData) {
         var urls = themeData.urls || {};
 
@@ -2116,7 +2079,6 @@
             heroContentBox.appendChild(statsBar);
         }
 
-        // Top 5 Most Read Bento Section (real OJS monthly/period stats)
         var monthlyTop5 = Array.isArray(homeStats.monthlyTop5) ? homeStats.monthlyTop5 : [];
         if (monthlyTop5.length > 0 && !document.getElementById("kisi-home-monthly-top5")) {
             var periodLabel = homeStats.periodLabel || new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -2181,9 +2143,6 @@
         }
     }
 
-    /* ======================================================================
-     * BLOK E: LOGIN, REGISTER, & ARCHIVE CLEANUP (DEDUPLICATED)
-     * ====================================================================== */
     function enhancePasswordInputs(rootEl) {
         var eyeOpenSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
         var eyeClosedSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
@@ -2225,7 +2184,6 @@
             });
         }
 
-        // Redirect site-level /index/login or /index/user links cleanly to current journal URLs
         if (urls.login) {
             document.querySelectorAll('a[href*="/index/login"]').forEach(function (a) {
                 a.setAttribute("href", sanitizeUrl(urls.login, a.getAttribute("href")));

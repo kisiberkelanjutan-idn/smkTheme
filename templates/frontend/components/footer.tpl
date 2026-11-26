@@ -1,26 +1,14 @@
-{**
- * plugins/themes/smkTheme/templates/frontend/components/footer.tpl
- *
- * Clean, CSP-safe common site frontend footer for SMK Child Theme (OJS 3.5).
- *
- * @uses $isFullWidth bool Should this page be displayed without sidebars?
- *
- * @hook Templates::Common::Sidebar []
- * @hook Templates::Common::Footer::PageFooter []
- *}
+</div>
 
-	</div><!-- pkp_structure_main -->
-
-	{* Sidebars *}
 	{if empty($isFullWidth)}
 		{capture assign="sidebarCode"}{call_hook name="Templates::Common::Sidebar"}{/capture}
 		{if $sidebarCode}
 			<div class="pkp_structure_sidebar left" role="complementary">
 				{$sidebarCode}
-			</div><!-- pkp_sidebar.left -->
+			</div>
 		{/if}
 	{/if}
-</div><!-- pkp_structure_content -->
+</div>
 
 <div class="pkp_structure_footer_wrapper" role="contentinfo">
 	<a id="pkp_content_footer"></a>
@@ -39,11 +27,10 @@
 			</a>
 		</div>
 	</div>
-</div><!-- pkp_structure_footer_wrapper -->
+</div>
 
-</div><!-- pkp_structure_page -->
+</div>
 
-{* Non-executable JSON configuration payload from SmkThemePlugin (XSS & strict-CSP safe) *}
 {if !empty($kisiThemeActivated)}
 	<script id="kisi-theme-data" type="application/json">{$kisiThemeDataJson|default:'{}'}</script>
 {/if}

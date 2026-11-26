@@ -1,11 +1,5 @@
 <?php
 
-/**
- * @file plugins/themes/smkTheme/SmkThemePlugin.php
- *
- * Hardened OJS 3.5 Child Theme extending DefaultThemePlugin for Kisi Berkelanjutan.
- */
-
 namespace APP\plugins\themes\smkTheme;
 
 use APP\core\Application;
@@ -22,25 +16,18 @@ use PKP\submissionFile\SubmissionFile;
 
 class SmkThemePlugin extends ThemePlugin
 {
-    /** Cache TTL in seconds for aggregated journal metrics (6 hours). */
+
     private const STATS_CACHE_TTL = 21600;
 
-    /** Cache TTL in seconds for per-article view/download metrics (10 minutes). */
     private const ARTICLE_METRICS_CACHE_TTL = 600;
 
-    /** Cache TTL in seconds for per-article galley/SDG metadata (24 hours). */
     private const ARTICLE_META_CACHE_TTL = 86400;
 
-    /** One-way salt & SHA-256 digest for verifying the theme activation token (plaintext token is never stored in code). */
     private const ACTIVATION_SALT = '8f07125009f8052c7f4111e3a2a32fe0';
     private const ACTIVATION_HASH = 'bfc414dfa539c2c885648c27b1714461c18f907a72b4a421f7baf0da7859e8c2';
 
-    /** Request-local cache for built context URLs. */
     private ?array $requestUrlsCache = null;
 
-    /**
-     * Initialize child theme options, styles, scripts, and template hooks.
-     */
     public function init(): void
     {
         $this->setParent('defaultthemeplugin');
@@ -52,7 +39,6 @@ class SmkThemePlugin extends ThemePlugin
             return;
         }
 
-        // Child theme uses Noto Sans / Georgia / Public Sans; remove parent's extra PHP font endpoint.
         if (method_exists($this, 'removeStyle')) {
             $this->removeStyle('font');
         }
@@ -63,9 +49,6 @@ class SmkThemePlugin extends ThemePlugin
         Hook::add('TemplateManager::display', [$this, 'loadTemplateData']);
     }
 
-    /**
-     * Verify whether a valid activation token has been configured in Theme Options (or config.inc.php).
-     */
     private function isThemeActivated(): bool
     {
         $rawToken = trim((string) $this->getOption('activationToken'));
@@ -80,9 +63,6 @@ class SmkThemePlugin extends ThemePlugin
         return hash_equals(self::ACTIVATION_HASH, $candidateHash);
     }
 
-    /**
-     * Mark frontend templates as locked when no valid activation token is configured.
-     */
     public function renderLockedNoticeData(string $hookName, array $args): int
     {
         $templateMgr = $args[0] ?? null;
@@ -102,9 +82,6 @@ class SmkThemePlugin extends ThemePlugin
         return __('plugins.themes.smkTheme.description');
     }
 
-    /**
-     * Register customizable theme options shown under Website > Appearance > Theme.
-     */
     private function registerThemeOptions(): void
     {
         $this->addOption('activationToken', 'FieldText', [
@@ -165,9 +142,6 @@ class SmkThemePlugin extends ThemePlugin
         ]);
     }
 
-    /**
-     * Inject sanitized context URLs and real server-side OJS metrics into frontend templates.
-     */
     public function loadTemplateData(string $hookName, array $args): int
     {
         $templateMgr = $args[0] ?? null;
@@ -288,9 +262,6 @@ class SmkThemePlugin extends ThemePlugin
         ];
     }
 
-    /**
-     * Cache wrapper with safe fallback if the cache driver fails.
-     */
     private function getCachedData(string $key, callable $callback, int $ttl = self::STATS_CACHE_TTL): array
     {
         try {
@@ -300,9 +271,6 @@ class SmkThemePlugin extends ThemePlugin
         }
     }
 
-    /**
-     * Compute real OJS homepage metrics (researchers, total usage, SDG count, and top 5 articles).
-     */
     private function computeHomeStats($request, string $contextPath, int $contextId): array
     {
         $dispatcher = Application::get()->getDispatcher();
@@ -321,7 +289,6 @@ class SmkThemePlugin extends ThemePlugin
             $grandDownloads += $m['downloads'];
         }
 
-        // Top 5 for current calendar month; fall back transparently to last 30 days, then all-time.
         $monthStart = date('Y-m-01');
         $today = date('Y-m-d');
         $periodLabel = date('F Y');
@@ -371,9 +338,6 @@ class SmkThemePlugin extends ThemePlugin
         ];
     }
 
-    /**
-     * Compute real OJS 3.5 statistics for the /statistics dashboard page.
-     */
     private function computeFullStatistics($request, string $contextPath, int $contextId): array
     {
         $dispatcher = Application::get()->getDispatcher();
@@ -449,9 +413,6 @@ class SmkThemePlugin extends ThemePlugin
         ];
     }
 
-    /**
-     * Collect real article metrics, dependent XML image URLs, and SDG IDs for article view pages.
-     */
     private function computeArticlePageData($request, string $contextPath, int $contextId, $templateMgr): array
     {
         $article = $templateMgr->getTemplateVars('article');
@@ -549,9 +510,6 @@ class SmkThemePlugin extends ThemePlugin
         ];
     }
 
-    /**
-     * Resolve exact dependent image URLs attached to an XML galley without browser probing.
-     */
     private function resolveDependentImagesMap($request, $dispatcher, string $contextPath, $articleBestId, string $galleyBestId, int $xmlSubmissionFileId): array
     {
         $map = [];
@@ -590,9 +548,6 @@ class SmkThemePlugin extends ThemePlugin
         return $map;
     }
 
-    /**
-     * Extract SDG numbers per article on the catalog category page via batched controlled_vocabs SQL.
-     */
     private function computeCatalogCategorySdgs(int $contextId, $templateMgr): array
     {
         $submissions = $templateMgr->getTemplateVars('publishedSubmissions')
@@ -624,7 +579,6 @@ class SmkThemePlugin extends ThemePlugin
             }
         }
 
-        // Fallback if template variable wasn't directly iterable: resolve from active category in SQL
         if (empty($entries)) {
             try {
                 $category = $templateMgr->getTemplateVars('category');
@@ -660,7 +614,6 @@ class SmkThemePlugin extends ThemePlugin
                     ];
                 }
             } catch (\Throwable $e) {
-                // Ignore SQL fallback failure
             }
         }
 
@@ -677,7 +630,6 @@ class SmkThemePlugin extends ThemePlugin
                 return $cached;
             }
         } catch (\Throwable $e) {
-            // Compute cleanly if cache read fails
         }
 
         $pubIds = array_values(array_unique(array_filter(array_map(static fn (array $e): int => $e['pubId'], $entries))));
@@ -706,16 +658,12 @@ class SmkThemePlugin extends ThemePlugin
             try {
                 Cache::put($cacheKey, $result, self::STATS_CACHE_TTL);
             } catch (\Throwable $e) {
-                // Non-fatal
             }
         }
 
         return $result;
     }
 
-    /**
-     * Build a map of [submissionId => ['views' => int, 'downloads' => int]] using OJS 3.5 stats service.
-     */
     private function fetchSubmissionMetricsMap(int $contextId, ?string $dateStart, ?string $dateEnd): array
     {
         $map = [];
@@ -765,9 +713,6 @@ class SmkThemePlugin extends ThemePlugin
         return $map;
     }
 
-    /**
-     * Fetch lifetime views and downloads for a single submission, mirroring article list totals.
-     */
     private function fetchSingleArticleTotalsByType(int $submissionId, int $contextId, $templateMgr = null): array
     {
         $views = 0;
@@ -825,7 +770,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Fall back safely to direct database totals below
         }
 
         if (!$hasValidByType && ($views === 0 || $downloads === 0)) {
@@ -851,7 +795,6 @@ class SmkThemePlugin extends ThemePlugin
                     }
                 }
             } catch (\Throwable $e) {
-                // Ignore if metrics_submission is unavailable
             }
         }
 
@@ -871,9 +814,6 @@ class SmkThemePlugin extends ThemePlugin
         return 0;
     }
 
-    /**
-     * Fetch genuine daily metrics for the last 30 days from OJS publication & context stats services.
-     */
     private function fetchRealDailySeries30(int $contextId): array
     {
         $endDate = date('Y-m-d');
@@ -922,7 +862,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Keep zero defaults
         }
 
         try {
@@ -944,7 +883,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Keep zero defaults
         }
 
         $series = [];
@@ -974,9 +912,6 @@ class SmkThemePlugin extends ThemePlugin
         return $series;
     }
 
-    /**
-     * Fetch genuine Top 10 visitor countries from OJS geo metrics tables when available.
-     */
     private function fetchRealTopCountries(int $contextId): array
     {
         try {
@@ -1051,9 +986,6 @@ class SmkThemePlugin extends ThemePlugin
         }
     }
 
-    /**
-     * Wrap stats service calls in case an OJS minor release expects DateTimeInterface for dateStart/dateEnd.
-     */
     private function safeStatsCall(callable $fn, array $args): iterable
     {
         try {
@@ -1244,7 +1176,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Fall back to subject-based SDG matching below
         }
 
         $count = 0;
@@ -1278,9 +1209,6 @@ class SmkThemePlugin extends ThemePlugin
         return $this->extractSdgsFromTexts($texts);
     }
 
-    /**
-     * Batch-load OJS 3.5 controlled vocabulary keywords/subjects/disciplines and legacy publication_settings for publication IDs.
-     */
     private function fetchControlledVocabTextsByPubIds(array $publicationIds): array
     {
         $pubIds = array_values(array_unique(array_filter(array_map('intval', $publicationIds), static fn (int $id): bool => $id > 0)));
@@ -1310,7 +1238,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Fall through safely to publication_settings
         }
 
         try {
@@ -1338,7 +1265,6 @@ class SmkThemePlugin extends ThemePlugin
                 }
             }
         } catch (\Throwable $e) {
-            // Non-fatal
         }
 
         return $map;

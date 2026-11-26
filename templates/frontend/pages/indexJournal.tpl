@@ -1,14 +1,8 @@
-{**
- * plugins/themes/smkTheme/templates/frontend/pages/indexJournal.tpl
- *
- * Hardened eLife-Style Homepage for Kisi Berkelanjutan (OJS 3.5 Child Theme).
- *}
 {include file="frontend/components/header.tpl" pageTitleTranslated=$currentJournal->getLocalizedName()}
 
 {if !empty($kisiThemeActivated)}
 <div class="page_index_journal">
 
-	{* --- HERO SECTION (Configurable from Website > Appearance > Theme) --- *}
 	<div class="elife-hero-section">
 		<div class="elife-hero-content">
 			<h1 class="elife-journal-title">
@@ -51,7 +45,6 @@
 			{/if}
 		</div>
 	</div>
-	{* --- END HERO SECTION --- *}
 
 	{call_hook name="Templates::Index::journal"}
 
@@ -70,7 +63,6 @@
 			{include file="frontend/components/categoryHeader.tpl" categories=$categories}
 		{/if}
 
-		{* Journal Description (when enabled in Theme Options) *}
 		{if $activeTheme && $activeTheme->getOption('showDescriptionInJournalIndex')}
 			<section class="homepage_about">
 				<a id="homepageAbout"></a>
@@ -79,12 +71,10 @@
 			</section>
 		{/if}
 
-		{* Latest Published Publications (OJS 3.5 feature) *}
 		{if $publishedPublications && $publishedPublications->count()}
 			{include file="frontend/objects/latest_article.tpl" articles=$publishedPublications heading="h2"}
 		{/if}
 
-		{* --- 1. LATEST RESEARCH (CURRENT ISSUE) --- *}
 		{if $issue}
 			<section class="elife-latest-articles" style="margin-top: 50px;">
 				<a id="homepageIssue"></a>
@@ -114,7 +104,6 @@
 			<p>{translate key="current.noCurrentIssueDesc"}</p>
 		{/if}
 
-		{* --- 2. LATEST ANNOUNCEMENTS --- *}
 		{if $numAnnouncementsHomepage && $announcements}
 			<section class="elife-latest-announcements" style="margin-top: 70px; margin-bottom: 50px; padding-top: 40px; border-top: 2px solid #212121;">
 				<div class="section-header-elife">
@@ -136,7 +125,6 @@
 			</section>
 		{/if}
 
-		{* Additional Homepage Content *}
 		{if $additionalHomeContent}
 			<div class="additional_content">
 				{$additionalHomeContent|strip_unsafe_html}

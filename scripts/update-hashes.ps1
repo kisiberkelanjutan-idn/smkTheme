@@ -1,15 +1,8 @@
-# ==============================================================================
-# Kisi Berkelanjutan (smkTheme) — Local LF Normalizer & SHA256SUMS Generator
-# Jalankan setiap kali selesai mengubah file tema sebelum git commit & push:
-#   powershell -ExecutionPolicy Bypass -File .\scripts\update-hashes.ps1
-# ==============================================================================
-
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
 $textExtensions = @('.php', '.tpl', '.js', '.css', '.svg', '.xml', '.po', '.md', '.yml', '.yaml', '.sh', '.ps1', '.htaccess', '')
 
-# 1. Normalisasi LF & hapus UTF-8 BOM pada seluruh file kerja (kecuali .git & desktop.ini)
 $allRepoFiles = Get-ChildItem -Path $repoRoot -Recurse -Force -File | Where-Object {
     $_.FullName -notmatch '\\\.git\\' -and $_.Name -notin @('desktop.ini', '.DS_Store', 'Thumbs.db', 'SHA256SUMS')
 }
@@ -32,7 +25,6 @@ foreach ($f in $allRepoFiles) {
     }
 }
 
-# 2. Kumpulkan daftar file yang di-deploy ke public_html
 $deployRelPaths = [System.Collections.Generic.List[string]]::new()
 foreach ($rootFile in @('.htaccess', 'index.php', 'README.md', 'SmkThemePlugin.php', 'version.xml')) {
     $full = Join-Path $repoRoot $rootFile
@@ -52,11 +44,9 @@ foreach ($dirName in @('assets', 'js', 'locale', 'styles', 'templates')) {
     }
 }
 
-# Urutkan secara byte-ordinal (identik dengan LC_ALL=C sort di Linux)
 $sortedPaths = @($deployRelPaths)
 [System.Array]::Sort($sortedPaths, [System.StringComparer]::Ordinal)
 
-# 3. Hitung SHA-256 dan tulis SHA256SUMS dalam format standar GNU sha256sum (LF)
 $sha256 = [System.Security.Cryptography.SHA256]::Create()
 $lines = foreach ($rel in $sortedPaths) {
     $full = Join-Path $repoRoot ($rel.Replace('/', '\'))
