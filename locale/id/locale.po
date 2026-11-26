@@ -11,6 +11,18 @@ msgstr "SMK Child Theme (Kisi Berkelanjutan)"
 msgid "plugins.themes.smkTheme.description"
 msgstr "Child theme OJS 3.5 turunan Default Theme yang aman, dengan opsi Hero terintegrasi, JATS XML viewer, badge SDG, dan statistik COUNTER R5 nyata."
 
+msgid "plugins.themes.smkTheme.option.activationToken.label"
+msgstr "Token Kunci Aktivasi Tema (Wajib)"
+
+msgid "plugins.themes.smkTheme.option.activationToken.description"
+msgstr "Masukkan Token Kunci Aktivasi resmi Kisi Berkelanjutan untuk mengaktifkan desain kustom, penampil interaktif, dan metrik statistik tema."
+
+msgid "plugins.themes.smkTheme.locked.title"
+msgstr "Aktivasi Tema Diperlukan"
+
+msgid "plugins.themes.smkTheme.locked.message"
+msgstr "SMK Child Theme saat ini terkunci. Silakan masukkan Token Kunci Aktivasi yang valid melalui menu Pengaturan Situs Web > Tampilan > Tema."
+
 msgid "plugins.themes.smkTheme.option.heroScopeText.label"
 msgstr "Teks Scope / Tagline Hero"
 

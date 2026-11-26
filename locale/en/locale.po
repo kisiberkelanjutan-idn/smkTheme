@@ -11,6 +11,18 @@ msgstr "SMK Child Theme (Kisi Berkelanjutan)"
 msgid "plugins.themes.smkTheme.description"
 msgstr "Hardened OJS 3.5 child theme extending Default Theme with customizable hero metrics, JATS XML viewer, SDG badges, and real COUNTER R5 statistics."
 
+msgid "plugins.themes.smkTheme.option.activationToken.label"
+msgstr "Theme Activation Token (Required)"
+
+msgid "plugins.themes.smkTheme.option.activationToken.description"
+msgstr "Enter the official Kisi Berkelanjutan activation key token to unlock custom styles, interactive viewers, and live metrics."
+
+msgid "plugins.themes.smkTheme.locked.title"
+msgstr "Theme Activation Required"
+
+msgid "plugins.themes.smkTheme.locked.message"
+msgstr "SMK Child Theme is currently locked. Please enter a valid Activation Token under Website Settings > Appearance > Theme."
+
 msgid "plugins.themes.smkTheme.option.heroScopeText.label"
 msgstr "Hero Scope / Tagline"
 

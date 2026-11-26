@@ -31,6 +31,10 @@ class SmkThemePlugin extends ThemePlugin
     /** Cache TTL in seconds for per-article galley/SDG metadata (24 hours). */
     private const ARTICLE_META_CACHE_TTL = 86400;
 
+    /** One-way salt & SHA-256 digest for verifying the theme activation token (plaintext token is never stored in code). */
+    private const ACTIVATION_SALT = '8f07125009f8052c7f4111e3a2a32fe0';
+    private const ACTIVATION_HASH = 'bfc414dfa539c2c885648c27b1714461c18f907a72b4a421f7baf0da7859e8c2';
+
     /** Request-local cache for built context URLs. */
     private ?array $requestUrlsCache = null;
 
@@ -43,6 +47,11 @@ class SmkThemePlugin extends ThemePlugin
 
         $this->registerThemeOptions();
 
+        if (!$this->isThemeActivated()) {
+            Hook::add('TemplateManager::display', [$this, 'renderLockedNoticeData']);
+            return;
+        }
+
         // Child theme uses Noto Sans / Georgia / Public Sans; remove parent's extra PHP font endpoint.
         if (method_exists($this, 'removeStyle')) {
             $this->removeStyle('font');
@@ -52,6 +61,35 @@ class SmkThemePlugin extends ThemePlugin
         $this->addScript('smk-theme', 'js/kisi-theme.js');
 
         Hook::add('TemplateManager::display', [$this, 'loadTemplateData']);
+    }
+
+    /**
+     * Verify whether a valid activation token has been configured in Theme Options (or config.inc.php).
+     */
+    private function isThemeActivated(): bool
+    {
+        $rawToken = trim((string) $this->getOption('activationToken'));
+        if ($rawToken === '' && class_exists(\PKP\config\Config::class)) {
+            $rawToken = trim((string) \PKP\config\Config::getVar('kisi', 'activation_token', ''));
+        }
+        if ($rawToken === '') {
+            return false;
+        }
+
+        $candidateHash = hash('sha256', self::ACTIVATION_SALT . ':' . strtoupper($rawToken));
+        return hash_equals(self::ACTIVATION_HASH, $candidateHash);
+    }
+
+    /**
+     * Mark frontend templates as locked when no valid activation token is configured.
+     */
+    public function renderLockedNoticeData(string $hookName, array $args): int
+    {
+        $templateMgr = $args[0] ?? null;
+        if ($templateMgr) {
+            $templateMgr->assign('kisiThemeActivated', false);
+        }
+        return Hook::CONTINUE;
     }
 
     public function getDisplayName(): string
@@ -69,6 +107,12 @@ class SmkThemePlugin extends ThemePlugin
      */
     private function registerThemeOptions(): void
     {
+        $this->addOption('activationToken', 'FieldText', [
+            'label' => __('plugins.themes.smkTheme.option.activationToken.label'),
+            'description' => __('plugins.themes.smkTheme.option.activationToken.description'),
+            'default' => '',
+        ]);
+
         $this->addOption('heroScopeText', 'FieldTextarea', [
             'label' => __('plugins.themes.smkTheme.option.heroScopeText.label'),
             'description' => __('plugins.themes.smkTheme.option.heroScopeText.description'),
@@ -195,6 +239,7 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        $templateMgr->assign('kisiThemeActivated', true);
         $templateMgr->assign('kisiThemeDataJson', json_encode($payload, $jsonFlags) ?: '{}');
 
         return Hook::CONTINUE;

@@ -193,8 +193,8 @@ fi
 
 # 6. Pemindai kebocoran kredensial / token / username hosting
 leaked_secrets=$(
-    grep -rnE 'kisf5786|USERNAME_CPANEL|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|smtp_password\s*=' \
-        index.php SmkThemePlugin.php version.xml README.md .cpanel.yml assets js locale styles templates || true
+    grep -rnE 'kisf5786|USERNAME_CPANEL|KISI-SMK-[0-9A-F]{8}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|smtp_password\s*=' \
+        .htaccess index.php README.md SmkThemePlugin.php version.xml .cpanel.yml assets js locale styles templates || true
 )
 if [ -n "$leaked_secrets" ]; then
     abort_deploy "Terdeteksi potensi kredensial/token sensitif di dalam file: $leaked_secrets"

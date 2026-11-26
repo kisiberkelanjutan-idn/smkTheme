@@ -5,6 +5,7 @@
  *}
 {include file="frontend/components/header.tpl" pageTitleTranslated=$currentJournal->getLocalizedName()}
 
+{if !empty($kisiThemeActivated)}
 <div class="page_index_journal">
 
 	{* --- HERO SECTION (Configurable from Website > Appearance > Theme) --- *}
@@ -143,5 +144,11 @@
 		{/if}
 	</div>
 </div>
+{else}
+<div class="pkp_page_content" style="max-width: 680px; margin: 48px auto; padding: 28px 32px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #1e293b; text-align: center;">
+	<h2 style="margin: 0 0 10px; font-size: 1.25rem;">{translate key="plugins.themes.smkTheme.locked.title"}</h2>
+	<p style="margin: 0; font-size: 0.95rem; color: #475569; line-height: 1.6;">{translate key="plugins.themes.smkTheme.locked.message"}</p>
+</div>
+{/if}
 
 {include file="frontend/components/footer.tpl"}

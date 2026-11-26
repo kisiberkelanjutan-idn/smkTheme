@@ -44,7 +44,9 @@
 </div><!-- pkp_structure_page -->
 
 {* Non-executable JSON configuration payload from SmkThemePlugin (XSS & strict-CSP safe) *}
-<script id="kisi-theme-data" type="application/json">{$kisiThemeDataJson|default:'{}'}</script>
+{if !empty($kisiThemeActivated)}
+	<script id="kisi-theme-data" type="application/json">{$kisiThemeDataJson|default:'{}'}</script>
+{/if}
 
 {load_script context="frontend"}
 
