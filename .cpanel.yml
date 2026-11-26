@@ -1,11 +1,17 @@
 ---
 deployment:
   tasks:
-    - sha256sum -c SHA256SUMS
-    - export DEPLOYPATH=$HOME/public_html/plugins/themes/smkTheme
-    - /bin/rm -rf "$DEPLOYPATH"
+    # 1. Gatekeeper Keamanan (Fail-Closed): Verifikasi SHA256SUMS, Whitelist PHP, & Anti-Webshell sebelum menyentuh public_html
+    - /bin/sh ./scripts/verify-deploy.sh
+    # 2. Siapkan & bersihkan total folder target di public_html dari potensi file asing/sisipan
+    - export DEPLOYPATH="$HOME/public_html/plugins/themes/smkTheme"
     - /bin/mkdir -p "$DEPLOYPATH"
-    - /bin/cp -R assets js locale styles templates .htaccess index.php README.md SHA256SUMS SmkThemePlugin.php version.xml "$DEPLOYPATH"/
-    - /bin/find "$DEPLOYPATH" -type d -exec /bin/chmod 755 {} \;
-    - /bin/find "$DEPLOYPATH" -type f -exec /bin/chmod 644 {} \;
-    - cd "$DEPLOYPATH" && sha256sum -c SHA256SUMS
+    - /bin/rm -rf "$DEPLOYPATH"/* "$DEPLOYPATH"/.[!.]* "$DEPLOYPATH"/..?*
+    # 3. Salin hanya file & folder resmi (termasuk .htaccess pemblokir eksekusi skrip di tiap subfolder)
+    - /bin/cp -f index.php SmkThemePlugin.php version.xml "$DEPLOYPATH"/
+    - /bin/cp -R assets js locale styles templates "$DEPLOYPATH"/
+    # 4. Kunci permission ketat (755 direktori, 644 file — nol file executable di public_html)
+    - find "$DEPLOYPATH" -type d -exec /bin/chmod 755 {} \;
+    - find "$DEPLOYPATH" -type f -exec /bin/chmod 644 {} \;
+    # 5. Verifikasi ulang checksum SHA-256 langsung pada hasil akhir di public_html
+    - /bin/sh ./scripts/verify-deploy.sh --verify-target "$DEPLOYPATH"

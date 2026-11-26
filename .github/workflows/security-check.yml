@@ -1,0 +1,51 @@
+name: Security & Integrity Gate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  security-gate:
+    name: Security & Integrity Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3 (matching production OJS 3.5 server)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Lint PHP syntax & check UTF-8 BOM
+        run: |
+          php -l index.php
+          php -l SmkThemePlugin.php
+          if head -c 3 index.php | grep -q $'\xef\xbb\xbf' || head -c 3 SmkThemePlugin.php | grep -q $'\xef\xbb\xbf'; then
+            echo "[SECURITY ABORT] UTF-8 BOM detected in PHP source files!" >&2
+            exit 1
+          fi
+
+      - name: Validate XML plugin descriptor
+        run: |
+          php -r '
+            $xml = file_get_contents("version.xml");
+            $xml = preg_replace("/<!DOCTYPE[^>]+>/", "", $xml);
+            libxml_use_internal_errors(true);
+            if (simplexml_load_string($xml) === false) {
+                fwrite(STDERR, "Invalid version.xml\n");
+                exit(1);
+            }
+            echo "version.xml valid\n";
+          '
+
+      - name: Run Anti-Webshell, Whitelist, .htaccess & SHA-256 Gatekeeper
+        run: /bin/sh ./scripts/verify-deploy.sh
