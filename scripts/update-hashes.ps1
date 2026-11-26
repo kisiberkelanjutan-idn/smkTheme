@@ -34,7 +34,7 @@ foreach ($f in $allRepoFiles) {
 
 # 2. Kumpulkan daftar file yang di-deploy ke public_html
 $deployRelPaths = [System.Collections.Generic.List[string]]::new()
-foreach ($rootFile in @('index.php', 'SmkThemePlugin.php', 'version.xml')) {
+foreach ($rootFile in @('.htaccess', 'index.php', 'README.md', 'SmkThemePlugin.php', 'version.xml')) {
     $full = Join-Path $repoRoot $rootFile
     if (-not (Test-Path $full)) {
         throw "File wajib tidak ditemukan: $rootFile"

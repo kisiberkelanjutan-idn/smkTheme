@@ -7,8 +7,8 @@ deployment:
     - export DEPLOYPATH="$HOME/public_html/plugins/themes/smkTheme"
     - /bin/mkdir -p "$DEPLOYPATH"
     - /bin/rm -rf "$DEPLOYPATH"/* "$DEPLOYPATH"/.[!.]* "$DEPLOYPATH"/..?*
-    # 3. Salin hanya file & folder resmi (termasuk .htaccess pemblokir eksekusi skrip di tiap subfolder)
-    - /bin/cp -f index.php SmkThemePlugin.php version.xml "$DEPLOYPATH"/
+    # 3. Salin hanya file & folder resmi (termasuk .htaccess root & pemblokir eksekusi skrip di tiap subfolder)
+    - /bin/cp -f .htaccess index.php README.md SmkThemePlugin.php version.xml "$DEPLOYPATH"/
     - /bin/cp -R assets js locale styles templates "$DEPLOYPATH"/
     # 4. Kunci permission ketat (755 direktori, 644 file — nol file executable di public_html)
     - find "$DEPLOYPATH" -type d -exec /bin/chmod 755 {} \;

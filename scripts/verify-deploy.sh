@@ -20,6 +20,7 @@ abort_deploy() {
 verify_htaccess_set() {
     base_dir="$1"
     for ht in \
+        ".htaccess" \
         "assets/.htaccess" \
         "js/.htaccess" \
         "locale/.htaccess" \
@@ -46,7 +47,7 @@ verify_manifest_and_hashes() {
     expected_files=$(awk '{print $2}' "$MANIFEST" | LC_ALL=C sort)
     actual_files=$(
         {
-            for rf in index.php SmkThemePlugin.php version.xml; do
+            for rf in .htaccess index.php README.md SmkThemePlugin.php version.xml; do
                 if [ -f "$check_dir/$rf" ]; then
                     printf '%s\n' "$rf"
                 fi
