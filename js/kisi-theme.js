@@ -2186,7 +2186,14 @@
 
         if (urls.login) {
             document.querySelectorAll('a[href*="/index/login"]').forEach(function (a) {
-                a.setAttribute("href", sanitizeUrl(urls.login, a.getAttribute("href")));
+                var href = a.getAttribute("href") || "";
+                if (/signOut|logout/i.test(href)) return;
+                try {
+                    if (!/\/login\/?$/i.test(new URL(href, window.location.origin).pathname)) return;
+                } catch (e) {
+                    return;
+                }
+                a.setAttribute("href", sanitizeUrl(urls.login, href));
             });
         }
         if (urls.register) {
