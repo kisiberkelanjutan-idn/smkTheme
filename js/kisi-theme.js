@@ -1257,6 +1257,164 @@
                 referencesItem.id = "section-references";
                 centerMain.appendChild(referencesItem);
                 outlineItems.push({ id: "section-references", title: "References" });
+
+                (function enhanceArticleReferences(refSection, artData) {
+                    var valBox = refSection.querySelector(".value") || refSection;
+                    var rawNodes = Array.from(valBox.querySelectorAll(":scope > p, :scope > ol > li, :scope > ul > li, :scope > .csl-entry"));
+                    if (rawNodes.length === 0) return;
+
+                    var refListWrap = document.createElement("div");
+                    refListWrap.className = "kisi-frontiers-ref-list";
+
+                    var rowEntries = [];
+
+                    function makeSig(str) {
+                        return String(str || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 40);
+                    }
+
+                    function stripLeadingRefNum(htmlOrText, fallbackNum) {
+                        var str = String(htmlOrText || "").trim();
+                        var m = str.match(/^(?:\[\s*(\d{1,3})\s*\]|\(\s*(\d{1,3})\s*\)|(\d{1,3})\s*[.)])\s*([\s\S]+)$/);
+                        if (m) {
+                            return {
+                                num: m[1] || m[2] || m[3] || String(fallbackNum),
+                                body: m[4].trim()
+                            };
+                        }
+                        return { num: String(fallbackNum), body: str };
+                    }
+
+                    function buildCleanCitationFragment(sourceEl) {
+                        var clone = sourceEl.cloneNode(true);
+                        clone.querySelectorAll("a[href]").forEach(function (a) {
+                            var txt = (a.textContent || "").trim();
+                            a.replaceWith(document.createTextNode(txt));
+                        });
+                        var firstTextAdjusted = false;
+                        function stripFirstTextPrefix(node) {
+                            if (firstTextAdjusted) return;
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                var val = node.nodeValue || "";
+                                if (val.trim() !== "") {
+                                    node.nodeValue = val.replace(/^\s*(?:\[\s*\d{1,3}\s*\]|\(\s*\d{1,3}\s*\)|\d{1,3}\s*[.)])\s*/, "");
+                                    firstTextAdjusted = true;
+                                }
+                                return;
+                            }
+                            Array.from(node.childNodes).forEach(stripFirstTextPrefix);
+                        }
+                        stripFirstTextPrefix(clone);
+                        return cloneSafeRichTextFragment(clone);
+                    }
+
+                    function renderLinksBar(linksBarEl, linksObj) {
+                        linksBarEl.innerHTML = "";
+                        if (!linksObj || typeof linksObj !== "object") {
+                            linksBarEl.style.display = "none";
+                            return;
+                        }
+                        var ordered = [
+                            { key: "pubmed", label: "Pubmed Abstract" },
+                            { key: "crossref", label: "CrossRef" },
+                            { key: "garuda", label: "Garuda" },
+                            { key: "scholar", label: "Google Scholar" }
+                        ];
+                        var count = 0;
+                        ordered.forEach(function (def) {
+                            var rawUrl = linksObj[def.key];
+                            var safe = sanitizeUrl(rawUrl, "");
+                            if (!safe || safe === "#") return;
+                            var a = document.createElement("a");
+                            a.href = safe;
+                            a.target = "_blank";
+                            a.rel = "noopener noreferrer";
+                            a.className = "kisi-ref-source-link";
+                            a.textContent = def.label;
+                            linksBarEl.appendChild(a);
+                            count++;
+                        });
+                        linksBarEl.style.display = count > 0 ? "flex" : "none";
+                    }
+
+                    rawNodes.forEach(function (node, idx) {
+                        var plainFull = (node.textContent || "").replace(/\s+/g, " ").trim();
+                        if (!plainFull) return;
+
+                        var splitInfo = stripLeadingRefNum(plainFull, idx + 1);
+                        var sig = makeSig(splitInfo.body);
+
+                        var row = document.createElement("div");
+                        row.className = "kisi-ref-item-row";
+
+                        var numCol = document.createElement("div");
+                        numCol.className = "kisi-ref-num";
+                        numCol.textContent = splitInfo.num;
+
+                        var bodyCol = document.createElement("div");
+                        bodyCol.className = "kisi-ref-content";
+
+                        var textDiv = document.createElement("div");
+                        textDiv.className = "kisi-ref-text";
+                        textDiv.appendChild(buildCleanCitationFragment(node));
+
+                        var linksBar = document.createElement("div");
+                        linksBar.className = "kisi-ref-links-bar";
+                        linksBar.style.display = "none";
+
+                        bodyCol.appendChild(textDiv);
+                        bodyCol.appendChild(linksBar);
+                        row.appendChild(numCol);
+                        row.appendChild(bodyCol);
+                        refListWrap.appendChild(row);
+
+                        rowEntries.push({
+                            idx: idx,
+                            sig: sig,
+                            linksBar: linksBar
+                        });
+                    });
+
+                    if (rowEntries.length === 0) return;
+
+                    valBox.innerHTML = "";
+                    valBox.appendChild(refListWrap);
+
+                    function applyResolvedList(resolvedArr) {
+                        if (!Array.isArray(resolvedArr) || resolvedArr.length === 0) return;
+                        var bySig = {};
+                        resolvedArr.forEach(function (r) {
+                            if (r && r.sig && !bySig[r.sig]) {
+                                bySig[r.sig] = r;
+                            }
+                        });
+                        rowEntries.forEach(function (entry, pos) {
+                            var matched = (entry.sig && bySig[entry.sig]) ? bySig[entry.sig] : (resolvedArr[pos] || null);
+                            if (matched && matched.links) {
+                                renderLinksBar(entry.linksBar, matched.links);
+                            }
+                        });
+                    }
+
+                    if (Array.isArray(artData.resolvedRefs)) {
+                        applyResolvedList(artData.resolvedRefs);
+                    } else if (artData.resolveRefsUrl && typeof window.fetch === "function") {
+                        var safeEndpoint = sanitizeUrl(artData.resolveRefsUrl, "");
+                        if (safeEndpoint && safeEndpoint !== "#") {
+                            window.fetch(safeEndpoint, {
+                                method: "GET",
+                                credentials: "same-origin",
+                                headers: { "Accept": "application/json" }
+                            })
+                                .then(function (r) { return r.ok ? r.json() : null; })
+                                .then(function (data) {
+                                    if (data && Array.isArray(data.references)) {
+                                        applyResolvedList(data.references);
+                                    }
+                                })
+                                .catch(function () {});
+                        }
+                    }
+                })(referencesItem, articleData);
             }
             centerMain.appendChild(bottomMeta);
 
