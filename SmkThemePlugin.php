@@ -481,7 +481,7 @@ class SmkThemePlugin extends ThemePlugin
                 $bestId = $article->getBestId();
                 $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
                 $metaCached = $this->getCachedData(
-                    "kisi_smk_art_meta_v3_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
+                    "kisi_smk_art_meta_v4_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
                     function () use ($request, $dispatcher, $contextPath, $bestId, $publication): array {
                         $galleyMeta = [];
                         $xmlDependentImages = [];
@@ -498,7 +498,7 @@ class SmkThemePlugin extends ThemePlugin
                                 'label' => $label,
                             ];
 
-                            if ($subFileId > 0 && preg_match('/^(xml|jats|full[\s-]*text\s*xml)$/i', trim($label))) {
+                            if ($subFileId > 0 && preg_match('/\b(xml|jats)\b/i', trim($label))) {
                                 $xmlDependentImages = $this->resolveDependentImagesMap(
                                     $request,
                                     $dispatcher,

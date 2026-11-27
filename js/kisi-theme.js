@@ -571,14 +571,18 @@
                     frag.appendChild(innerFrag);
                 }
             } else if (tag === "xref") {
-                var refType = child.getAttribute("ref-type") || "";
+                var refType = (child.getAttribute("ref-type") || "").toLowerCase();
                 var rid = (child.getAttribute("rid") || "").replace(/[^A-Za-z0-9_.:-]/g, "");
-                var prefix = refType === "fig" ? "#fig-" : (refType === "table" ? "#tab-" : "#ref-");
-                var xrefLink = document.createElement("a");
-                xrefLink.href = prefix + rid;
-                xrefLink.className = "kisi-xref";
-                xrefLink.appendChild(innerFrag);
-                frag.appendChild(xrefLink);
+                if ((refType === "fig" || refType === "table") && rid) {
+                    var prefix = refType === "fig" ? "#fig-" : "#tab-";
+                    var xrefLink = document.createElement("a");
+                    xrefLink.href = prefix + rid;
+                    xrefLink.className = "kisi-xref";
+                    xrefLink.appendChild(innerFrag);
+                    frag.appendChild(xrefLink);
+                } else {
+                    frag.appendChild(innerFrag);
+                }
             } else if (tag === "p") {
                 if (!child.textContent.trim()) return;
                 var p = document.createElement("p");
@@ -635,13 +639,34 @@
         var frag = document.createDocumentFragment();
         var secCounter = 0;
 
+        var nonBodyTags = {
+            front: true,
+            back: true,
+            "article-meta": true,
+            "journal-meta": true,
+            "ref-list": true,
+            abstract: true,
+            "trans-abstract": true,
+            "kwd-group": true,
+            "fn-group": true,
+            "author-notes": true
+        };
+
         Array.from(parentXmlNode.children).forEach(function (el) {
             var tag = el.tagName.toLowerCase();
+            if (nonBodyTags[tag]) return;
             if (tag === "sec") {
-                secCounter++;
-                var secId = (secPrefix ? secPrefix + "-" : "xml-sec-") + secCounter;
+                var secType = (el.getAttribute("sec-type") || "").trim().toLowerCase();
                 var titleNode = el.querySelector(":scope > title");
                 var titleText = titleNode ? titleNode.textContent.trim() : "";
+                var cleanHeading = titleText.replace(/^\s*[\dIVX]+[\s.)\-:]*/i, "").trim();
+                if (/^(abstract|trans-abstract|keywords?|kwd|ref|references?|bibliography|author-notes|publisher-note)$/i.test(secType)
+                    || /^(abstract|abstrak|ringkasan|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|bibliografi|bibliography|kepustakaan)$/i.test(cleanHeading)
+                    || el.querySelector(":scope > ref-list")) {
+                    return;
+                }
+                secCounter++;
+                var secId = (secPrefix ? secPrefix + "-" : "xml-sec-") + secCounter;
                 var isTopLevel = !secPrefix;
 
                 var section = document.createElement("section");
@@ -1098,7 +1123,7 @@
             articleDetails.querySelectorAll(".obj_galley_link, .galleys_links a").forEach(function (gLink) {
                 var rawText = gLink.textContent.replace(/\s+/g, " ").trim();
                 var href = gLink.getAttribute("href") || "";
-                if (/^(xml|jats|full[\s-]*text\s*xml)$/i.test(rawText) || /\.xml$/i.test(href)) {
+                if (/\b(xml|jats)\b/i.test(rawText) || /\.xml$/i.test(href)) {
                     xmlGalleyUrl = sanitizeUrl(href.replace("/article/view/", "/article/download/"), null);
                     var parentLi = gLink.closest("li");
                     if (parentLi) parentLi.style.display = "none";
@@ -1216,9 +1241,6 @@
             disclaimerBlock.className = "frontiers-meta-block";
             disclaimerBlock.innerHTML = "<h4>Disclaimer</h4><p>All claims expressed in this article are solely those of the authors and do not necessarily represent those of their affiliated organizations, or those of the publisher, the editors and the reviewers.</p>";
             bottomMeta.appendChild(disclaimerBlock);
-
-            var xmlReferencesPlaceholder = document.createElement("div");
-            centerMain.appendChild(xmlReferencesPlaceholder);
 
             if (referencesItem) {
                 referencesItem.id = "section-references";
@@ -1487,29 +1509,89 @@
             }
 
             if (fullTextBlock) {
-                var ftViews = fullTextBlock.querySelector("[class*='view'], [class*='count'], .fa-eye");
-                if (ftViews) {
-                    var ftParent = ftViews.closest("div, span, li") || ftViews;
-                    ftParent.remove();
-                }
-                fullTextWrapper.appendChild(fullTextBlock);
-                fullTextBlock.querySelectorAll("h2, h3.article-section-title").forEach(function (secH, sIdx) {
-                    var sId = "ft-sec-" + sIdx;
-                    secH.id = sId;
-                    outlineItems.push({ id: sId, title: secH.textContent.trim() });
+                document.querySelectorAll("#kisi-sec-abstract, .kisi-jats-abstract-box, #kisi-sec-references").forEach(function (n) {
+                    n.remove();
                 });
+
+                fullTextBlock.querySelectorAll(
+                    ".kisi-jats-metabar, .kisi-jats-toc, #kisi-sec-abstract, .kisi-jats-abstract-box, .kisi-abs-keywords, " +
+                    "#kisi-sec-references, .kisi-jats-ref-list, .kisi-jats-publishers-note, .kisi-jats-retypeset-box, " +
+                    ".article-meta, .journal-meta, front, back, ref-list, [class*='view-counter'], [class*='view_counter'], .fa-eye"
+                ).forEach(function (n) {
+                    n.remove();
+                });
+
+                fullTextBlock.querySelectorAll("section, .kisi-jats-section").forEach(function (secEl) {
+                    var secIdAttr = (secEl.getAttribute("id") || "").toLowerCase();
+                    if (secIdAttr.indexOf("abstract") !== -1 || secIdAttr.indexOf("ref") !== -1 || secEl.querySelector(".kisi-jats-ref-list, ref-list")) {
+                        secEl.remove();
+                        return;
+                    }
+                    var hEl = secEl.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > .kisi-jats-h2, :scope > .kisi-jats-h3");
+                    if (hEl) {
+                        var hClean = hEl.textContent.replace(/^\s*[\dIVX]+[\s.)\-:]*/i, "").replace(/\s+/g, " ").trim();
+                        if (/^(abstract|abstrak|ringkasan|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|bibliografi|bibliography|kepustakaan)$/i.test(hClean)) {
+                            secEl.remove();
+                        }
+                    }
+                });
+
+                var bodyOnlyContainer = fullTextBlock.querySelector(".kisi-jats-article-body");
+                if (bodyOnlyContainer) {
+                    fullTextBlock.innerHTML = "";
+                    fullTextBlock.appendChild(bodyOnlyContainer);
+                }
+
+                fullTextBlock.querySelectorAll("img[src]").forEach(function (imgEl) {
+                    var rawSrc = (imgEl.getAttribute("src") || "").trim();
+                    if (!rawSrc || /^https?:\/\//i.test(rawSrc) || rawSrc.charAt(0) === "/" || rawSrc.indexOf("data:") === 0) {
+                        return;
+                    }
+                    var fname = rawSrc.split("/").pop().trim().toLowerCase();
+                    var mappedUrl = sanitizeUrl(extraGalleyFileMap[fname], "");
+                    if (mappedUrl && mappedUrl !== "#") {
+                        imgEl.setAttribute("src", mappedUrl);
+                    }
+                });
+
+                fullTextBlock.querySelectorAll("a.kisi-jats-cite[href^='#kisi-ref-'], a[href^='#ref-']").forEach(function (citeA) {
+                    if (referencesItem) {
+                        citeA.setAttribute("href", "#section-references");
+                    } else {
+                        citeA.replaceWith(document.createTextNode(citeA.textContent || ""));
+                    }
+                });
+
+                var refIdxBefore = outlineItems.findIndex(function (it) { return it.id === "section-references"; });
+                var refOutlineSaved = null;
+                if (refIdxBefore !== -1) {
+                    refOutlineSaved = outlineItems.splice(refIdxBefore, 1)[0];
+                }
+
+                fullTextWrapper.appendChild(fullTextBlock);
+                fullTextBlock.querySelectorAll("h2, .kisi-jats-h2, h3.article-section-title").forEach(function (secH, sIdx) {
+                    var sTitle = secH.textContent.replace(/\s+/g, " ").trim();
+                    if (!sTitle) return;
+                    var sId = secH.id || ("ft-sec-" + sIdx);
+                    secH.id = sId;
+                    outlineItems.push({ id: sId, title: sTitle });
+                });
+
+                if (refOutlineSaved) {
+                    outlineItems.push(refOutlineSaved);
+                }
                 renderOutlineCard();
             } else if (xmlGalleyUrl) {
                 fullTextWrapper.innerHTML = '<p style="color:#666; font-style:italic;">Loading full-text article...</p>';
                 var fetchTargetUrl = xmlGalleyUrl;
                 var xmlGalleyMeta = (articleData.galleyMeta || []).find(function (gm) {
-                    return /^(xml|jats)/i.test(gm.label || "") && gm.fileId && gm.fileId !== "0";
+                    return /\b(xml|jats)\b/i.test(gm.label || "") && gm.fileId && gm.fileId !== "0";
                 });
                 if (xmlGalleyMeta) {
                     fetchTargetUrl = xmlGalleyUrl.replace(/\/+$/, "") + "/" + xmlGalleyMeta.fileId;
                 }
 
-                var xmlCacheKey = "kisi_xml_v1_" + fetchTargetUrl;
+                var xmlCacheKey = "kisi_xml_v2_" + fetchTargetUrl;
                 var xmlPromise = null;
                 try {
                     var cachedXml = window.sessionStorage ? window.sessionStorage.getItem(xmlCacheKey) : null;
@@ -1534,17 +1616,7 @@
                 xmlPromise
                     .then(function (xmlStr) {
                         var xmlDoc = new DOMParser().parseFromString(xmlStr, "text/xml");
-                        var xmlTitleEl = xmlDoc.querySelector("article-meta article-title, title-group article-title");
-                        if (xmlTitleEl && xmlTitleEl.textContent.trim() && (!titleEl || !titleEl.textContent.trim())) {
-                            if (!titleEl) {
-                                titleEl = document.createElement("h1");
-                                titleEl.className = "page_title kisi-clean-title";
-                                centerMain.insertBefore(titleEl, centerMain.firstChild);
-                            }
-                            titleEl.textContent = xmlTitleEl.textContent.trim();
-                        }
-
-                        var bodyNode = xmlDoc.querySelector("body");
+                        var bodyNode = xmlDoc.querySelector("article > body, body");
                         if (bodyNode) {
                             var hasRefOutline = outlineItems.some(function (it) { return it.id === "section-references"; });
                             if (hasRefOutline) {
@@ -1554,32 +1626,7 @@
                             fullTextWrapper.innerHTML = "";
                             fullTextWrapper.appendChild(buildXmlBlockNodes(bodyNode, "", outlineItems, extraGalleyFileMap));
 
-                            var refListXml = xmlDoc.querySelector("back ref-list");
-                            if (refListXml && !referencesItem) {
-                                var refWrap = document.createElement("div");
-                                refWrap.id = "section-references";
-                                refWrap.className = "item references";
-                                var refH2 = document.createElement("h2");
-                                refH2.className = "article-section-title";
-                                refH2.textContent = "References";
-                                var refOl = document.createElement("ol");
-                                refOl.className = "kisi-xml-reflist";
-                                refListXml.querySelectorAll("ref").forEach(function (rNode) {
-                                    var rId = (rNode.getAttribute("id") || "").replace(/[^A-Za-z0-9_.:-]/g, "");
-                                    var citationText = rNode.textContent.replace(/^\s*\d+\.?\s*/, "").replace(/\s+/g, " ").trim();
-                                    var rLi = document.createElement("li");
-                                    if (rId) rLi.id = "ref-" + rId;
-                                    rLi.style.marginBottom = "8px";
-                                    rLi.style.fontSize = "0.86rem";
-                                    rLi.style.color = "#444";
-                                    rLi.textContent = citationText;
-                                    refOl.appendChild(rLi);
-                                });
-                                refWrap.appendChild(refH2);
-                                refWrap.appendChild(refOl);
-                                xmlReferencesPlaceholder.replaceWith(refWrap);
-                                outlineItems.push({ id: "section-references", title: "References" });
-                            } else if (hasRefOutline) {
+                            if (hasRefOutline) {
                                 outlineItems.push({ id: "section-references", title: "References" });
                             }
                             renderOutlineCard();

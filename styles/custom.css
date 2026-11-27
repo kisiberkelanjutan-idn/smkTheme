@@ -4900,3 +4900,26 @@ html body div.page.page_issue .obj_issue_toc hr {
     letter-spacing: 0.5px !important;
     box-sizing: border-box !important;
 }
+
+.kisi-jats-metabar,
+.kisi-jats-toc,
+#kisi-sec-abstract,
+.kisi-jats-abstract-box,
+.kisi-abs-keywords,
+#kisi-sec-references,
+.kisi-jats-ref-list,
+.kisi-jats-publishers-note,
+.kisi-jats-retypeset-box,
+.kisi-xml-reflist {
+    display: none !important;
+}
+
+.kisi-jats-digest-wrapper {
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 16px !important;
+}
+
+.frontiers-center-main #section-abstract {
+    display: block !important;
+}
