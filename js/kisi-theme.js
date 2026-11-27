@@ -660,9 +660,10 @@
                 var titleNode = el.querySelector(":scope > title");
                 var titleText = titleNode ? titleNode.textContent.trim() : "";
                 var cleanHeading = titleText.replace(/^\s*[\dIVX]+[\s.)\-:]*/i, "").trim();
-                if (/^(abstract|trans-abstract|keywords?|kwd|ref|references?|bibliography|author-notes|publisher-note)$/i.test(secType)
-                    || /^(abstract|abstrak|ringkasan|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|bibliografi|bibliography|kepustakaan)$/i.test(cleanHeading)
-                    || el.querySelector(":scope > ref-list")) {
+                if (/^(abstract|trans-abstract|keywords?|kwd|sdgs?|ref|references?|bibliography|author-notes|publisher-note)$/i.test(secType)
+                    || /^(abstract|abstrak|ringkasan|intisari|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|sumber\s+pustaka|bibliografi|bibliography|kepustakaan|publisher'?s?\s+note|catatan\s+penerbit)$/i.test(cleanHeading)
+                    || /\b(sdgs?|sustainable\s+development\s+goals?|tujuan\s+pembangunan\s+berkelanjutan)\b/i.test(cleanHeading)
+                    || el.querySelector(":scope > ref-list, :scope > kwd-group")) {
                     return;
                 }
                 secCounter++;
@@ -682,6 +683,10 @@
                 section.appendChild(buildXmlBlockNodes(el, secId, outlineItems, extraGalleyFileMap));
                 frag.appendChild(section);
             } else if (tag === "p") {
+                var rawPTxt = (el.textContent || "").replace(/\s+/g, " ").trim();
+                if (/^(keywords?|kata\s+kunci|abstract|abstrak|contribution\s+to\s+sustainable\s+development\s+goals?\s*(\(sdgs?\))?|kontribusi\s+(terhadap\s+)?(sdgs?|tujuan\s+pembangunan\s+berkelanjutan))\s*[:.\-]/i.test(rawPTxt)) {
+                    return;
+                }
                 var pFrag = buildXmlInlineFragment(el);
                 if (el.textContent.trim() !== "") {
                     var p = document.createElement("p");
@@ -1509,30 +1514,51 @@
             }
 
             if (fullTextBlock) {
-                document.querySelectorAll("#kisi-sec-abstract, .kisi-jats-abstract-box, #kisi-sec-references").forEach(function (n) {
-                    n.remove();
-                });
-
-                fullTextBlock.querySelectorAll(
-                    ".kisi-jats-metabar, .kisi-jats-toc, #kisi-sec-abstract, .kisi-jats-abstract-box, .kisi-abs-keywords, " +
-                    "#kisi-sec-references, .kisi-jats-ref-list, .kisi-jats-publishers-note, .kisi-jats-retypeset-box, " +
-                    ".article-meta, .journal-meta, front, back, ref-list, [class*='view-counter'], [class*='view_counter'], .fa-eye"
+                document.querySelectorAll(
+                    "#kisi-sec-abstract, .kisi-jats-abstract-box, .kisi-abs-keywords, #kisi-sec-references, " +
+                    ".kisi-jats-metabar, .kisi-jats-toc, .kisi-jats-publishers-note, .kisi-jats-retypeset-box"
                 ).forEach(function (n) {
                     n.remove();
                 });
 
-                fullTextBlock.querySelectorAll("section, .kisi-jats-section").forEach(function (secEl) {
-                    var secIdAttr = (secEl.getAttribute("id") || "").toLowerCase();
-                    if (secIdAttr.indexOf("abstract") !== -1 || secIdAttr.indexOf("ref") !== -1 || secEl.querySelector(".kisi-jats-ref-list, ref-list")) {
+                if (abstractItem) {
+                    abstractItem.style.removeProperty("display");
+                }
+
+                fullTextBlock.querySelectorAll(
+                    ".kisi-jats-metabar, .kisi-jats-toc, #kisi-sec-abstract, .kisi-jats-abstract-box, .kisi-jats-abstract-tabs, " +
+                    ".kisi-jats-abstract-single-head, .kisi-abs-subhead, .kisi-abs-p, .kisi-abs-list, .kisi-abs-keywords, " +
+                    ".kisi-badge, [class*='kisi-badge-'], #kisi-sec-references, .kisi-jats-ref-list, " +
+                    ".kisi-jats-publishers-note, .kisi-jats-retypeset-box, aside, .article-meta, .journal-meta, " +
+                    "front, back, ref-list, kwd-group, [class*='view-counter'], [class*='view_counter'], .fa-eye"
+                ).forEach(function (n) {
+                    n.remove();
+                });
+
+                fullTextBlock.querySelectorAll("section, .kisi-jats-section, div").forEach(function (secEl) {
+                    if (secEl.classList && secEl.classList.contains("kisi-jats-article-body")) {
+                        return;
+                    }
+                    var secIdAttr = ((secEl.getAttribute("id") || "") + " " + (typeof secEl.className === "string" ? secEl.className : "")).toLowerCase();
+                    if (/(?:sec-abstract|abstract-box|abs-keywords|sec-ref|ref-list|sec-sdg|sec-keyword|publishers-note|metabar)/i.test(secIdAttr)
+                        || secEl.querySelector(":scope > .kisi-jats-ref-list, :scope > ref-list")) {
                         secEl.remove();
                         return;
                     }
-                    var hEl = secEl.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > .kisi-jats-h2, :scope > .kisi-jats-h3");
+                    var hEl = secEl.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > .kisi-jats-h2, :scope > .kisi-jats-h3, :scope > .kisi-abs-subhead");
                     if (hEl) {
                         var hClean = hEl.textContent.replace(/^\s*[\dIVX]+[\s.)\-:]*/i, "").replace(/\s+/g, " ").trim();
-                        if (/^(abstract|abstrak|ringkasan|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|bibliografi|bibliography|kepustakaan)$/i.test(hClean)) {
+                        if (/^(abstract|abstrak|ringkasan|intisari|keywords?|kata\s+kunci|references?|referensi|daftar\s+pustaka|sumber\s+pustaka|bibliografi|bibliography|kepustakaan|publisher'?s?\s+note|catatan\s+penerbit)$/i.test(hClean)
+                            || /\b(sdgs?|sustainable\s+development\s+goals?|tujuan\s+pembangunan\s+berkelanjutan)\b/i.test(hClean)) {
                             secEl.remove();
                         }
+                    }
+                });
+
+                fullTextBlock.querySelectorAll("p").forEach(function (pEl) {
+                    var pClean = (pEl.textContent || "").replace(/\s+/g, " ").trim();
+                    if (/^(keywords?|kata\s+kunci|abstract|abstrak|contribution\s+to\s+sustainable\s+development\s+goals?\s*(\(sdgs?\))?|kontribusi\s+(terhadap\s+)?(sdgs?|tujuan\s+pembangunan\s+berkelanjutan))\s*[:.\-]/i.test(pClean)) {
+                        pEl.remove();
                     }
                 });
 

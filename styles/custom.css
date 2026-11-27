@@ -4902,15 +4902,27 @@ html body div.page.page_issue .obj_issue_toc hr {
 }
 
 .kisi-jats-metabar,
+.kisi-jats-metabar-badges,
+.kisi-jats-metabar-details,
 .kisi-jats-toc,
 #kisi-sec-abstract,
 .kisi-jats-abstract-box,
+.kisi-jats-abstract-tabs,
+.kisi-jats-abstract-single-head,
+.kisi-abs-subhead,
+.kisi-abs-p,
+.kisi-abs-list,
 .kisi-abs-keywords,
 #kisi-sec-references,
 .kisi-jats-ref-list,
 .kisi-jats-publishers-note,
 .kisi-jats-retypeset-box,
-.kisi-xml-reflist {
+.kisi-xml-reflist,
+#section-fulltext .kisi-badge,
+#section-fulltext [class*="kisi-abs-"],
+#section-fulltext [id*="sec-abstract"],
+#section-fulltext [id*="sec-references"],
+#section-fulltext [id*="sec-sdg"] {
     display: none !important;
 }
 
