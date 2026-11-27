@@ -529,7 +529,7 @@ class SmkThemePlugin extends ThemePlugin
 
                 $rawCitations = $this->extractPublicationRawCitations($publication, $templateMgr);
                 if (!empty($rawCitations)) {
-                    $refCacheKey = "kisi_smk_refs_v1_{$contextId}_{$submissionId}_" . md5(implode("\n", $rawCitations));
+                    $refCacheKey = "kisi_smk_refs_v2_{$contextId}_{$submissionId}_" . md5(implode("\n", $rawCitations));
                     if ((string) $request->getUserVar('kisiResolveRefs') === '1') {
                         $resolved = $this->getCachedData(
                             $refCacheKey,
@@ -1547,81 +1547,87 @@ class SmkThemePlugin extends ThemePlugin
             $parsedList[$idx] = $this->parseSingleCitation($raw, $idx);
         }
 
-        $crossrefRequests = [];
+        $explicitDoisByIdx = [];
+        $crossrefBibRequests = [];
         foreach ($parsedList as $idx => $info) {
             if ($info['doi'] !== '') {
-                $crossrefRequests['doi_' . $idx] = 'https://api.crossref.org/works/' . rawurlencode($info['doi']);
+                $explicitDoisByIdx[$idx] = strtolower($info['doi']);
             } elseif ($info['titleWordCount'] >= 4 && mb_strlen($info['title'], 'UTF-8') >= 22) {
                 $queryStr = mb_substr($info['cleanBody'], 0, 300, 'UTF-8');
-                $crossrefRequests['bib_' . $idx] = 'https://api.crossref.org/works?rows=2&query.bibliographic=' . rawurlencode($queryStr);
+                $crossrefBibRequests['bib_' . $idx] = 'https://api.crossref.org/works?rows=2&query.bibliographic=' . rawurlencode($queryStr);
             }
         }
 
-        $crResponses = $this->runConcurrentGetRequests($crossrefRequests, 4.5);
-        foreach ($parsedList as $idx => &$info) {
-            if (isset($crResponses['doi_' . $idx])) {
-                $res = $crResponses['doi_' . $idx];
-                if ($res['status'] === 200) {
-                    $json = json_decode($res['body'], true);
-                    $msg = $json['message'] ?? null;
-                    if (is_array($msg) && !empty($msg['DOI'])) {
-                        $info['verifiedCrossrefDoi'] = trim((string) $msg['DOI']);
-                        if ($info['titleWordCount'] < 4 && !empty($msg['title'][0])) {
-                            $info['title'] = trim(strip_tags((string) $msg['title'][0]));
-                            $info['titleWordCount'] = count($this->normalizeTitleTokens($info['title']));
-                        }
-                        if ($info['firstAuthor'] === '' && !empty($msg['author'][0]['family'])) {
-                            $info['firstAuthor'] = trim((string) $msg['author'][0]['family']);
-                        }
-                        if ($info['year'] === '') {
-                            $crY = (string) ($msg['issued']['date-parts'][0][0] ?? $msg['published']['date-parts'][0][0] ?? '');
-                            if (preg_match('/^\d{4}$/', $crY)) {
-                                $info['year'] = $crY;
-                            }
-                        }
+        if (!empty($explicitDoisByIdx)) {
+            $crMetaByDoi = $this->batchVerifyCrossrefDois(array_values(array_unique($explicitDoisByIdx)));
+            foreach ($explicitDoisByIdx as $idx => $lowerDoi) {
+                if (isset($crMetaByDoi[$lowerDoi])) {
+                    $meta = $crMetaByDoi[$lowerDoi];
+                    $parsedList[$idx]['verifiedCrossrefDoi'] = $meta['doi'];
+                    if ($meta['title'] !== '' && mb_strlen($meta['title'], 'UTF-8') >= 10) {
+                        $parsedList[$idx]['title'] = $meta['title'];
+                        $parsedList[$idx]['titleWordCount'] = count($this->normalizeTitleTokens($meta['title']));
                     }
-                }
-            } elseif (isset($crResponses['bib_' . $idx])) {
-                $res = $crResponses['bib_' . $idx];
-                if ($res['status'] === 200) {
-                    $json = json_decode($res['body'], true);
-                    $candidates = $json['message']['items'] ?? [];
-                    if (is_array($candidates)) {
-                        foreach ($candidates as $cand) {
-                            $candDoi = trim((string) ($cand['DOI'] ?? ''));
-                            $candTitle = trim(strip_tags((string) ($cand['title'][0] ?? '')));
-                            if ($candDoi === '' || $candTitle === '') {
-                                continue;
-                            }
-                            $candYear = (string) ($cand['issued']['date-parts'][0][0] ?? $cand['published']['date-parts'][0][0] ?? '');
-                            if ($info['year'] !== '' && preg_match('/^\d{4}$/', $candYear)) {
-                                if (abs((int) $info['year'] - (int) $candYear) > 1) {
-                                    continue;
-                                }
-                            }
-                            $candFamily = trim((string) ($cand['author'][0]['family'] ?? ''));
-                            if (!$info['isInstitutional'] && $info['firstAuthor'] !== '' && $candFamily !== '') {
-                                if (!$this->authorSurnameMatches($info['firstAuthor'], $candFamily, $info['normFull'])) {
-                                    continue;
-                                }
-                            }
-                            if ($this->isStrictTitleMatch($info['title'], $candTitle, $info['normFull'])) {
-                                $info['doi'] = $candDoi;
-                                $info['verifiedCrossrefDoi'] = $candDoi;
-                                if ($info['firstAuthor'] === '' && $candFamily !== '') {
-                                    $info['firstAuthor'] = $candFamily;
-                                }
-                                if ($info['year'] === '' && preg_match('/^\d{4}$/', $candYear)) {
-                                    $info['year'] = $candYear;
-                                }
-                                break;
-                            }
-                        }
+                    if ($parsedList[$idx]['firstAuthor'] === '' && $meta['firstAuthor'] !== '') {
+                        $parsedList[$idx]['firstAuthor'] = $meta['firstAuthor'];
+                    }
+                    if ($parsedList[$idx]['year'] === '' && $meta['year'] !== '') {
+                        $parsedList[$idx]['year'] = $meta['year'];
                     }
                 }
             }
         }
-        unset($info);
+
+        if (!empty($crossrefBibRequests)) {
+            $crResponses = $this->runConcurrentGetRequests($crossrefBibRequests, 5.5);
+            foreach ($parsedList as $idx => &$info) {
+                if (!isset($crResponses['bib_' . $idx])) {
+                    continue;
+                }
+                $res = $crResponses['bib_' . $idx];
+                if ($res['status'] !== 200) {
+                    continue;
+                }
+                $json = json_decode($res['body'], true);
+                $candidates = $json['message']['items'] ?? [];
+                if (!is_array($candidates)) {
+                    continue;
+                }
+                foreach ($candidates as $cand) {
+                    $candDoi = trim((string) ($cand['DOI'] ?? ''));
+                    $candTitle = trim(strip_tags((string) ($cand['title'][0] ?? '')));
+                    if ($candDoi === '' || $candTitle === '') {
+                        continue;
+                    }
+                    $candYear = (string) ($cand['issued']['date-parts'][0][0] ?? $cand['published']['date-parts'][0][0] ?? '');
+                    if ($info['year'] !== '' && preg_match('/^\d{4}$/', $candYear)) {
+                        if (abs((int) $info['year'] - (int) $candYear) > 1) {
+                            continue;
+                        }
+                    }
+                    $candFamily = trim((string) ($cand['author'][0]['family'] ?? ''));
+                    if (!$info['isInstitutional'] && $info['firstAuthor'] !== '' && $candFamily !== '') {
+                        if (!$this->authorSurnameMatches($info['firstAuthor'], $candFamily, $info['normFull'])) {
+                            continue;
+                        }
+                    }
+                    if ($this->isStrictTitleMatch($info['title'], $candTitle, $info['normFull'])) {
+                        $info['doi'] = $candDoi;
+                        $info['verifiedCrossrefDoi'] = $candDoi;
+                        $info['title'] = $candTitle;
+                        $info['titleWordCount'] = count($this->normalizeTitleTokens($candTitle));
+                        if ($info['firstAuthor'] === '' && $candFamily !== '') {
+                            $info['firstAuthor'] = $candFamily;
+                        }
+                        if ($info['year'] === '' && preg_match('/^\d{4}$/', $candYear)) {
+                            $info['year'] = $candYear;
+                        }
+                        break;
+                    }
+                }
+            }
+            unset($info);
+        }
 
         $doisForPubmed = [];
         foreach ($parsedList as $idx => $info) {
@@ -1634,7 +1640,11 @@ class SmkThemePlugin extends ThemePlugin
             $doiMap = $this->batchLookupPubmedByDois(array_values(array_unique($doisForPubmed)));
             foreach ($doisForPubmed as $idx => $lowerDoi) {
                 if (isset($doiMap[$lowerDoi])) {
-                    $parsedList[$idx]['pmid'] = $doiMap[$lowerDoi];
+                    $parsedList[$idx]['pmid'] = $doiMap[$lowerDoi]['pmid'];
+                    if ($parsedList[$idx]['verifiedCrossrefDoi'] === '' && $doiMap[$lowerDoi]['title'] !== '') {
+                        $parsedList[$idx]['title'] = $doiMap[$lowerDoi]['title'];
+                        $parsedList[$idx]['titleWordCount'] = count($this->normalizeTitleTokens($doiMap[$lowerDoi]['title']));
+                    }
                 }
             }
         }
@@ -1705,17 +1715,17 @@ class SmkThemePlugin extends ThemePlugin
                 || ($info['titleWordCount'] >= 4 && $info['year'] !== '' && ($info['firstAuthor'] !== '' || $info['isInstitutional']));
 
             if ($canBuildScholar && $info['title'] !== '') {
-                $qParams = ['title' => $info['title']];
+                $queryParts = [trim(preg_replace('/\s+/u', ' ', str_replace('"', '', $info['title'])) ?? '')];
                 if ($info['firstAuthor'] !== '') {
-                    $qParams['author'] = $info['firstAuthor'];
+                    $queryParts[] = $info['firstAuthor'];
                 }
                 if ($info['year'] !== '') {
-                    $qParams['publication_year'] = $info['year'];
+                    $queryParts[] = $info['year'];
                 }
-                if ($info['doi'] !== '') {
-                    $qParams['doi'] = $info['doi'];
+                $scholarQuery = trim(implode(' ', array_filter($queryParts)));
+                if ($scholarQuery !== '') {
+                    $links['scholar'] = 'https://scholar.google.com/scholar?q=' . rawurlencode($scholarQuery);
                 }
-                $links['scholar'] = 'https://scholar.google.com/scholar_lookup?' . http_build_query($qParams, '', '&', PHP_QUERY_RFC3986);
             }
 
             $output[] = [
@@ -1773,23 +1783,30 @@ class SmkThemePlugin extends ThemePlugin
             $year = (string) end($ymAll[1]);
         }
 
+        $normForSplit = preg_replace('/\b([A-Z])\.\s+(?=[A-Z]\.)/u', '$1.', $stripped) ?? $stripped;
+        $normForSplit = preg_replace('/\bet\s+al\.\s+/iu', 'et al||SPLIT||', $normForSplit) ?? $normForSplit;
+
         $authorsRaw = '';
         $title = '';
-        if (preg_match('/^(.+?)\(\s*(?:19[5-9]\d|20[0-3]\d)[a-z]?\s*\)\.?\s*(.+)$/u', $stripped, $apaMatch)) {
-            $authorsRaw = trim($apaMatch[1], " .,;:");
-            $rest = trim($apaMatch[2]);
+        if (preg_match('/^([^.?]{3,140}?)\(\s*(?:19[5-9]\d|20[0-3]\d)[a-z]?\s*\)\.?\s*(.+)$/u', $normForSplit, $apaMatch)) {
+            $authorsRaw = trim(str_replace('||SPLIT||', ' ', $apaMatch[1]), " .,;:");
+            $rest = trim(str_replace('||SPLIT||', '. ', $apaMatch[2]));
             $parts = preg_split('/(?<=[.?])\s+/u', $rest, 2) ?: [];
             $title = trim((string) ($parts[0] ?? $rest), " .");
         } else {
-            $segments = preg_split('/(?<=[^\sA-Z])\.\s+|\?\s+/u', $stripped) ?: [];
+            $vancNorm = str_replace('||SPLIT||', '. ', $normForSplit);
+            $segments = preg_split('/(?<!\b[A-Z])\.\s+|\?\s+|(?<=\b[A-Z]{2})\.\s+|(?<=,\s[A-Z])\.\s+|(?<=\s[A-Z])\.\s+(?=[A-Z][a-z]{2,})/u', $vancNorm) ?: [];
+            if (count($segments) < 2) {
+                $segments = preg_split('/\.\s+|\?\s+/u', $vancNorm) ?: [];
+            }
             if (count($segments) >= 2) {
                 $authorsRaw = trim($segments[0], " .,;:");
                 $title = trim($segments[1], " .");
-                if (mb_strlen($title, 'UTF-8') < 16 && isset($segments[2])) {
+                if (mb_strlen($title, 'UTF-8') < 14 && isset($segments[2])) {
                     $title = trim($title . '. ' . $segments[2], " .");
                 }
             } else {
-                $title = trim($stripped, " .");
+                $title = trim($vancNorm, " .");
             }
         }
 
@@ -1830,6 +1847,41 @@ class SmkThemePlugin extends ThemePlugin
         ];
     }
 
+    private function batchVerifyCrossrefDois(array $lowerDois): array
+    {
+        $verified = [];
+        if (empty($lowerDois)) {
+            return $verified;
+        }
+
+        foreach (array_chunk($lowerDois, 25) as $chunk) {
+            $filters = array_map(static fn (string $d): string => 'doi:' . $d, $chunk);
+            $url = 'https://api.crossref.org/works?rows=50&select=DOI,title,author,issued&filter=' . rawurlencode(implode(',', $filters));
+            $resp = $this->runConcurrentGetRequests(['batch_cr' => $url], 6.5);
+            if (($resp['batch_cr']['status'] ?? 0) === 200) {
+                $json = json_decode($resp['batch_cr']['body'], true);
+                $items = $json['message']['items'] ?? [];
+                if (is_array($items)) {
+                    foreach ($items as $it) {
+                        $d = trim((string) ($it['DOI'] ?? ''));
+                        if ($d === '') {
+                            continue;
+                        }
+                        $yr = (string) ($it['issued']['date-parts'][0][0] ?? '');
+                        $verified[strtolower($d)] = [
+                            'doi' => $d,
+                            'title' => trim(strip_tags((string) ($it['title'][0] ?? ''))),
+                            'firstAuthor' => trim((string) ($it['author'][0]['family'] ?? '')),
+                            'year' => preg_match('/^\d{4}$/', $yr) ? $yr : '',
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $verified;
+    }
+
     private function batchLookupPubmedByDois(array $lowerDois): array
     {
         $doiToPmid = [];
@@ -1841,7 +1893,7 @@ class SmkThemePlugin extends ThemePlugin
             $clauses = array_map(static fn (string $d): string => '"' . str_replace('"', '', $d) . '"[AID]', $chunk);
             $term = implode(' OR ', $clauses);
             $searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&retmax=50&term=' . rawurlencode($term);
-            $searchResp = $this->runConcurrentGetRequests(['esearch' => $searchUrl], 4.5);
+            $searchResp = $this->runConcurrentGetRequests(['esearch' => $searchUrl], 5.5);
             if (($searchResp['esearch']['status'] ?? 0) !== 200) {
                 continue;
             }
@@ -1857,7 +1909,7 @@ class SmkThemePlugin extends ThemePlugin
             }
 
             $sumUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&retmode=json&id=' . implode(',', $cleanIds);
-            $sumResp = $this->runConcurrentGetRequests(['esummary' => $sumUrl], 4.5);
+            $sumResp = $this->runConcurrentGetRequests(['esummary' => $sumUrl], 5.5);
             if (($sumResp['esummary']['status'] ?? 0) !== 200) {
                 continue;
             }
@@ -1871,9 +1923,13 @@ class SmkThemePlugin extends ThemePlugin
                 if (!is_array($doc) || empty($doc['articleids']) || !is_array($doc['articleids'])) {
                     continue;
                 }
+                $pmTitle = rtrim(trim(strip_tags((string) ($doc['title'] ?? ''))), '.');
                 foreach ($doc['articleids'] as $aid) {
                     if (strtolower((string) ($aid['idtype'] ?? '')) === 'doi' && !empty($aid['value'])) {
-                        $doiToPmid[strtolower(trim((string) $aid['value']))] = $pmid;
+                        $doiToPmid[strtolower(trim((string) $aid['value']))] = [
+                            'pmid' => $pmid,
+                            'title' => $pmTitle,
+                        ];
                     }
                 }
             }
