@@ -2184,6 +2184,11 @@
             });
         }
 
+        if (urls.signOut) {
+            document.querySelectorAll('a[href*="/index/login/signOut"]').forEach(function (a) {
+                a.setAttribute("href", sanitizeUrl(urls.signOut, a.getAttribute("href")));
+            });
+        }
         if (urls.login) {
             document.querySelectorAll('a[href*="/index/login"]').forEach(function (a) {
                 var href = a.getAttribute("href") || "";

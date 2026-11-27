@@ -44,7 +44,14 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $this->addStyle('smk-custom', 'styles/custom.css?v=' . $this->assetVersion('styles/custom.css'));
+        $this->addScript('smk-logout-guard', 'js/kisi-logout-guard.js?v=' . $this->assetVersion('js/kisi-logout-guard.js'), ['contexts' => ['frontend', 'backend']]);
         $this->addScript('smk-theme', 'js/kisi-theme.js?v=' . $this->assetVersion('js/kisi-theme.js'));
+
+        if (!headers_sent()) {
+            header('Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0', true);
+            header('Pragma: no-cache', true);
+            header('Expires: Thu, 01 Jan 1970 00:00:00 GMT', true);
+        }
 
         Hook::add('TemplateManager::display', [$this, 'loadTemplateData']);
     }
@@ -154,7 +161,18 @@ class SmkThemePlugin extends ThemePlugin
         $templateMgr = $args[0] ?? null;
         $template = (string) ($args[1] ?? '');
 
-        if (!$templateMgr || !$this->isFrontendTemplate($template)) {
+        if (!$templateMgr) {
+            return Hook::CONTINUE;
+        }
+
+        if (str_starts_with($template, 'layouts/backend') && method_exists($templateMgr, 'addJavaScript')) {
+            $req = Application::get()->getRequest();
+            $guardUrl = rtrim($req->getBaseUrl(), '/') . '/' . trim($this->getPluginPath(), '/') . '/js/kisi-logout-guard.js?v=' . $this->assetVersion('js/kisi-logout-guard.js');
+            $templateMgr->addJavaScript('smk-logout-guard-backend', $guardUrl, ['contexts' => ['backend']]);
+            return Hook::CONTINUE;
+        }
+
+        if (!$this->isFrontendTemplate($template)) {
             return Hook::CONTINUE;
         }
 
@@ -175,6 +193,7 @@ class SmkThemePlugin extends ThemePlugin
                 'sdgCategory' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'catalog', 'category', ['sdgs']),
                 'editorialTeam' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'about', 'editorialTeam'),
                 'login' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'login'),
+                'signOut' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'login', 'signOut'),
                 'register' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'user', 'register'),
                 'statistics' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'statistics'),
                 'sdgIconBase' => rtrim($request->getBaseUrl(), '/') . '/' . trim($this->getPluginPath(), '/') . '/assets/img/sdg/',
