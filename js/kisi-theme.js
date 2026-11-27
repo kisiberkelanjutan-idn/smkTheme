@@ -1643,27 +1643,93 @@
             var outlinePlaceHolder = document.createElement("div");
             leftRail.appendChild(outlinePlaceHolder);
 
+            var outlineScrollSpyCleanup = null;
+
             function renderOutlineCard() {
+                if (outlineScrollSpyCleanup) {
+                    outlineScrollSpyCleanup();
+                    outlineScrollSpyCleanup = null;
+                }
                 if (outlineItems.length === 0) {
                     outlinePlaceHolder.innerHTML = "";
                     return;
                 }
                 var card = document.createElement("div");
-                card.className = "frontiers-card";
+                card.className = "frontiers-card frontiers-outline-card";
                 var cTitle = document.createElement("div");
                 cTitle.className = "frontiers-card-title";
                 cTitle.textContent = "Outline";
                 var ul = document.createElement("ul");
                 ul.className = "frontiers-outline-list";
+
+                var anchorById = {};
+                function setActiveOutlineId(activeId, syncListScroll) {
+                    Object.keys(anchorById).forEach(function (idKey) {
+                        var linkEl = anchorById[idKey];
+                        if (idKey === activeId) {
+                            linkEl.classList.add("active");
+                            if (syncListScroll && ul.scrollHeight > ul.clientHeight) {
+                                var linkTop = linkEl.offsetTop - ul.offsetTop;
+                                var linkBottom = linkTop + linkEl.offsetHeight;
+                                if (linkTop < ul.scrollTop) {
+                                    ul.scrollTop = Math.max(0, linkTop - 8);
+                                } else if (linkBottom > ul.scrollTop + ul.clientHeight) {
+                                    ul.scrollTop = linkBottom - ul.clientHeight + 8;
+                                }
+                            }
+                        } else {
+                            linkEl.classList.remove("active");
+                        }
+                    });
+                }
+
                 outlineItems.forEach(function (item, idx) {
                     var li = document.createElement("li");
                     var a = document.createElement("a");
                     a.href = "#" + item.id;
                     if (idx === 0) a.className = "active";
                     a.textContent = item.title;
+                    a.addEventListener("click", function (ev) {
+                        var secNode = document.getElementById(item.id);
+                        if (!secNode) return;
+                        ev.preventDefault();
+                        setActiveOutlineId(item.id, false);
+                        var targetTop = secNode.getBoundingClientRect().top + window.pageYOffset - 24;
+                        window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+                        if (window.history && typeof window.history.replaceState === "function") {
+                            window.history.replaceState(null, "", "#" + item.id);
+                        }
+                    });
+                    anchorById[item.id] = a;
                     li.appendChild(a);
                     ul.appendChild(li);
                 });
+
+                var rafPending = false;
+                function onWindowScroll() {
+                    if (rafPending) return;
+                    rafPending = true;
+                    window.requestAnimationFrame(function () {
+                        rafPending = false;
+                        var currentId = outlineItems[0] ? outlineItems[0].id : "";
+                        for (var i = 0; i < outlineItems.length; i++) {
+                            var targetEl = document.getElementById(outlineItems[i].id);
+                            if (!targetEl) continue;
+                            if (targetEl.getBoundingClientRect().top <= 130) {
+                                currentId = outlineItems[i].id;
+                            }
+                        }
+                        if (currentId) {
+                            setActiveOutlineId(currentId, true);
+                        }
+                    });
+                }
+
+                window.addEventListener("scroll", onWindowScroll, { passive: true });
+                outlineScrollSpyCleanup = function () {
+                    window.removeEventListener("scroll", onWindowScroll);
+                };
+
                 card.appendChild(cTitle);
                 card.appendChild(ul);
                 outlinePlaceHolder.innerHTML = "";
