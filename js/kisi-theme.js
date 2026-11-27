@@ -70,7 +70,13 @@
     function findArticleTitleLink(cardEl) {
         if (!cardEl) return null;
         return cardEl.querySelector(".title a, h3.title a, h4.title a, h2.title a")
-            || cardEl.querySelector('a[href*="/article/view/"]:not(.cover):not(.file)');
+            || cardEl.querySelector('a[href*="/article/view/"]:not(.cover):not(.file):not(.obj_galley_link)');
+    }
+
+    function toArticleLandingUrl(rawUrl) {
+        var safe = sanitizeUrl(rawUrl, "#");
+        if (safe === "#") return "#";
+        return safe.replace(/(\/article\/view\/[^\/?#]+)\/[^?#]+(.*)$/i, "$1$2");
     }
 
     function extractSdgsFromSubjects(combinedSubjects) {
@@ -2089,7 +2095,10 @@
                     }
 
                     var titleLink = findArticleTitleLink(summary);
-                    var articleUrl = sanitizeUrl(titleLink ? titleLink.getAttribute("href") : "#", "#");
+                    var fallbackViewLink = summary.querySelector('a[href*="/article/view/"]');
+                    var articleUrl = toArticleLandingUrl(
+                        titleLink ? titleLink.getAttribute("href") : (fallbackViewLink ? fallbackViewLink.getAttribute("href") : "#")
+                    );
                     var galleysUl = summary.querySelector(".galleys_links");
                     if (galleysUl) {
                         galleysUl.style.setProperty("display", "block", "important");
@@ -2107,20 +2116,48 @@
         var homePage = document.querySelector(".page_index_journal, .pkp_page_index");
         if (!homePage) return;
 
-        homePage.querySelectorAll('a.obj_galley_link, .galleys_links a, a[href*="/article/view/"]').forEach(function (link) {
-            var text = link.textContent.replace(/\s+/g, " ").trim();
-            if (/^pdf\b/i.test(text) || link.classList.contains("obj_galley_link") || link.classList.contains("pdf")) {
-                var rawHref = link.getAttribute("href") || "";
-                var fullTextUrl = rawHref.replace(/(\/article\/view\/[^\/]+)\/.*$/, "$1");
-                var parentCard = link.closest("li, .obj_article_summary, .article-card, div");
-                if (parentCard) {
-                    var titleAnchor = findArticleTitleLink(parentCard);
-                    if (titleAnchor && titleAnchor.getAttribute("href")) fullTextUrl = titleAnchor.getAttribute("href");
-                }
-                link.setAttribute("href", sanitizeUrl(fullTextUrl, "#"));
-                link.classList.remove("pdf");
-                link.textContent = "FULL-TEXT";
+        homePage.querySelectorAll(".obj_article_summary").forEach(function (summary) {
+            var titleLink = findArticleTitleLink(summary);
+            var fallbackViewLink = summary.querySelector('a[href*="/article/view/"]');
+            var articleUrl = toArticleLandingUrl(
+                titleLink ? titleLink.getAttribute("href") : (fallbackViewLink ? fallbackViewLink.getAttribute("href") : "#")
+            );
+            if (articleUrl === "#") return;
+            var galleysUl = summary.querySelector(".galleys_links");
+            if (galleysUl) {
+                galleysUl.style.setProperty("display", "block", "important");
+                galleysUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">FULL-TEXT</a></li>';
+            } else {
+                var newFtUl = document.createElement("ul");
+                newFtUl.className = "galleys_links";
+                newFtUl.innerHTML = '<li><a href="' + escapeHtml(articleUrl) + '" class="kisi-fulltext-btn">FULL-TEXT</a></li>';
+                summary.appendChild(newFtUl);
             }
+        });
+
+        homePage.querySelectorAll(".galleys_links").forEach(function (gUl) {
+            if (gUl.closest(".obj_article_summary")) return;
+            var firstLink = gUl.querySelector('a[href*="/article/view/"]');
+            var cardContainer = gUl.closest(".article-card, li, article, section, div");
+            var titleAnchor = cardContainer ? findArticleTitleLink(cardContainer) : null;
+            var targetUrl = toArticleLandingUrl(
+                titleAnchor ? titleAnchor.getAttribute("href") : (firstLink ? firstLink.getAttribute("href") : "#")
+            );
+            if (targetUrl !== "#") {
+                gUl.innerHTML = '<li><a href="' + escapeHtml(targetUrl) + '" class="kisi-fulltext-btn">FULL-TEXT</a></li>';
+            }
+        });
+
+        homePage.querySelectorAll("a.obj_galley_link").forEach(function (link) {
+            var cardContainer = link.closest(".obj_article_summary, .article-card, li, article, div");
+            var titleAnchor = cardContainer ? findArticleTitleLink(cardContainer) : null;
+            var targetUrl = toArticleLandingUrl(
+                titleAnchor ? titleAnchor.getAttribute("href") : link.getAttribute("href")
+            );
+            link.setAttribute("href", targetUrl);
+            link.classList.remove("pdf", "file");
+            link.classList.add("kisi-fulltext-btn");
+            link.textContent = "FULL-TEXT";
         });
 
         var heroContentBox =
