@@ -1,11 +1,76 @@
+:root {
+    --kisi-font-sans: "Museo Sans", "MuseoSans", "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html {
+    font-family: var(--kisi-font-sans) !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-x: clip !important;
+}
+
 body {
-    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-family: var(--kisi-font-sans) !important;
     color: #212121 !important;
     background-color: #ffffff !important;
     line-height: 1.6 !important;
     margin: 0 !important;
     padding: 0 !important;
+    max-width: 100% !important;
     overflow-x: hidden !important;
+    overflow-x: clip !important;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+li,
+td,
+th,
+label,
+a,
+figcaption,
+.pkp_structure_page,
+.pkp_head_wrapper,
+.pkp_navigation_primary,
+.pkp_navigation_user,
+.pkp_structure_content,
+.pkp_structure_footer_wrapper,
+.pkp_site_name_wrapper,
+.pkp_site_name,
+.cmp_breadcrumbs,
+.pkp_block,
+.elife-hero-section {
+    font-family: var(--kisi-font-sans) !important;
+}
+
+.fa,
+[class^="fa-"],
+[class*=" fa-"],
+.fas,
+.far,
+.fab,
+.fal {
+    font-family: 'FontAwesome' !important;
+}
+
+code,
+pre,
+kbd,
+samp {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
 }
 
 img {
@@ -759,7 +824,7 @@ body.pkp_page_index .pkp_structure_head,
 }
 
 .section-header-elife .title-italic {
-    font-family: Georgia, "Times New Roman", serif !important;
+    font-family: var(--kisi-font-sans) !important;
     font-weight: 400 !important;
     font-style: italic !important;
     color: #4a4a4a !important;
@@ -1535,8 +1600,8 @@ body.pkp_page_article .pkp_structure_content {
 
 .frontiers-dates-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(140px, 220px)) !important;
-    gap: 20px !important;
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)) !important;
+    gap: 18px !important;
     margin-bottom: 22px !important;
 }
 
@@ -3232,46 +3297,71 @@ a.kisi-fulltext-btn:hover {
 }
 
 .kisi-xml-fulltext {
+    font-family: var(--kisi-font-sans) !important;
     font-size: 1rem !important;
-    line-height: 1.8 !important;
-    color: #222222 !important;
+    font-weight: 400 !important;
+    line-height: 1.68 !important;
+    color: #262626 !important;
     margin-top: 10px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    text-align: left !important;
 }
 
 .kisi-xml-fulltext section.kisi-xml-sec {
     margin-bottom: 28px !important;
     scroll-margin-top: 30px !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
 }
 
-.kisi-xml-fulltext h2.article-section-title {
-    font-size: 1.35rem !important;
-    font-weight: 800 !important;
+.kisi-xml-fulltext h2.article-section-title,
+.jatsParser__center-article-block h2.article-section-title {
+    font-family: var(--kisi-font-sans) !important;
+    font-size: 1.45rem !important;
+    font-weight: 600 !important;
     color: #111111 !important;
     margin: 30px 0 12px 0 !important;
     padding-bottom: 6px !important;
     border-bottom: 1px solid #eeeeee !important;
+    text-align: left !important;
 }
 
-.kisi-xml-fulltext h3.article-subsection-title {
-    font-size: 1.1rem !important;
-    font-weight: 700 !important;
+.kisi-xml-fulltext h3.article-subsection-title,
+.jatsParser__center-article-block h3 {
+    font-family: var(--kisi-font-sans) !important;
+    font-size: 1.15rem !important;
+    font-weight: 600 !important;
     color: #222222 !important;
     margin: 22px 0 10px 0 !important;
+    text-align: left !important;
 }
 
-.kisi-xml-fulltext p {
+.kisi-xml-fulltext p,
+.kisi-xml-fulltext li,
+.kisi-xml-fulltext blockquote,
+#section-fulltext p,
+#section-fulltext li,
+#section-fulltext blockquote,
+.jatsParser__center-article-block p,
+.jatsParser__center-article-block li,
+.obj_article_details .abstract p,
+.obj_article_details .abstract li,
+#section-fulltext [style*="justify"],
+#section-fulltext [align="justify"] {
     margin: 0 0 16px 0 !important;
-    text-align: justify !important;
+    text-align: left !important;
+}
+
+.kisi-xml-fulltext li,
+#section-fulltext li {
+    margin-bottom: 6px !important;
 }
 
 .kisi-xml-fulltext ul,
 .kisi-xml-fulltext ol {
     margin: 0 0 18px 24px !important;
     padding: 0 !important;
-}
-
-.kisi-xml-fulltext li {
-    margin-bottom: 6px !important;
 }
 
 .kisi-xref {
@@ -3295,6 +3385,8 @@ a.kisi-fulltext-btn:hover {
     border-radius: 8px !important;
     text-align: center !important;
     scroll-margin-top: 30px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .kisi-xml-figure img {
@@ -3320,25 +3412,28 @@ a.kisi-fulltext-btn:hover {
 }
 
 .kisi-xml-figlabel {
-    font-weight: 800 !important;
+    font-weight: 700 !important;
     color: #111111 !important;
     margin-right: 6px !important;
     text-transform: uppercase !important;
-    font-size: 0.82rem !important;
+    font-size: 0.84rem !important;
 }
 
 .kisi-xml-table-wrap {
     margin: 30px 0 !important;
-    background-color: #ffffff !important;
-    border: 1px solid #dcdfe6 !important;
+    background-color: #f7f7f7 !important;
+    border: 1px solid #e2e5ea !important;
     border-radius: 8px !important;
-    padding: 18px !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+    padding: 16px !important;
     scroll-margin-top: 30px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
 }
 
 .kisi-xml-table-caption {
-    font-size: 0.88rem !important;
+    font-size: 0.94rem !important;
     line-height: 1.5 !important;
     color: #222222 !important;
     margin-bottom: 12px !important;
@@ -3346,50 +3441,98 @@ a.kisi-fulltext-btn:hover {
 }
 
 .kisi-xml-table-scroll {
+    display: block !important;
     width: 100% !important;
-    overflow-x: auto !important;
+    max-width: 100% !important;
+    max-height: 70vh !important;
+    overflow: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    background-color: #ffffff !important;
+    border: 1px solid #bfbfbf !important;
+    box-sizing: border-box !important;
 }
 
-.kisi-xml-table {
+.kisi-xml-table,
+#section-fulltext table {
     width: 100% !important;
+    min-width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 0.85rem !important;
+    background-color: #ffffff !important;
+    font-size: 0.875rem !important;
     line-height: 1.45 !important;
-    color: #212121 !important;
-    border-top: 2px solid #111111 !important;
-    border-bottom: 2px solid #111111 !important;
+    color: #333333 !important;
+    border: 1px solid #bfbfbf !important;
+    margin: 0 !important;
 }
 
-.kisi-xml-table thead th {
-    background-color: #f4f6f9 !important;
-    color: #111111 !important;
-    font-weight: 700 !important;
+.kisi-xml-table thead,
+#section-fulltext table thead {
+    background-color: #6b6b6b !important;
+    color: #ffffff !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+}
+
+.kisi-xml-table thead th,
+#section-fulltext table thead th {
+    background-color: #6b6b6b !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
     text-align: left !important;
-    padding: 10px 12px !important;
-    border-bottom: 1.5px solid #222222 !important;
-    white-space: nowrap !important;
-}
-
-.kisi-xml-table tbody td {
-    padding: 9px 12px !important;
-    border-bottom: 1px solid #eaeaea !important;
+    padding: 12px 14px !important;
+    border: 1px solid #ffffff !important;
     vertical-align: top !important;
+    max-width: 300px !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
 }
 
-.kisi-xml-table tbody tr:last-child td {
-    border-bottom: none !important;
+.kisi-xml-table tbody th,
+#section-fulltext table tbody th {
+    background-color: #e6e6e6 !important;
+    color: #333333 !important;
+    font-weight: 600 !important;
+    padding: 11px 14px !important;
+    border: 1px solid #bfbfbf !important;
+    vertical-align: top !important;
+    text-align: left !important;
 }
 
-.kisi-xml-table tbody tr:hover {
-    background-color: #f9fbff !important;
+.kisi-xml-table tbody td,
+#section-fulltext table tbody td,
+#section-fulltext table td {
+    background-color: #ffffff !important;
+    color: #444444 !important;
+    padding: 11px 14px !important;
+    border: 1px solid #bfbfbf !important;
+    vertical-align: top !important;
+    text-align: left !important;
+    max-width: 320px !important;
+    overflow-wrap: break-word !important;
+}
+
+.kisi-xml-table [align="center"],
+#section-fulltext table [align="center"] {
+    text-align: center !important;
+}
+
+.kisi-xml-table [align="right"],
+#section-fulltext table [align="right"] {
+    text-align: right !important;
+}
+
+.kisi-xml-table tbody tr:hover td,
+#section-fulltext table tbody tr:hover td {
+    background-color: #f9fafb !important;
 }
 
 .kisi-xml-table-foot {
-    margin-top: 10px !important;
-    font-size: 0.78rem !important;
-    color: #666666 !important;
+    margin-top: 12px !important;
+    font-size: 0.84rem !important;
+    color: #545454 !important;
     line-height: 1.45 !important;
+    text-align: left !important;
 }
 
 div#kisi-journal-stats-page,
@@ -3982,7 +4125,7 @@ div.page.page_login {
 }
 
 div.page.page_login > h1 {
-    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--kisi-font-sans) !important;
     font-size: 1.75rem !important;
     font-weight: 600 !important;
     color: #111111 !important;
@@ -4229,7 +4372,7 @@ div.page.page_register {
 }
 
 div.page.page_register > h1 {
-    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--kisi-font-sans) !important;
     font-size: 1.8rem !important;
     font-weight: 700 !important;
     color: #111111 !important;
@@ -5525,4 +5668,64 @@ a.kisi-ref-source-link:not(:last-child) {
     border-right: 1.5px solid #cbd5e1;
     padding-right: 11px;
     margin-right: 11px;
+}
+
+.pkp_structure_page,
+.pkp_structure_content,
+.pkp_structure_main,
+.obj_article_details,
+.frontiers-center-main,
+#section-fulltext,
+.kisi-center-top-meta-slot,
+.kisi-center-bottom-meta-slot,
+.kisi-stats-wrap,
+.kisi-stats-panel,
+.page_catalog_category,
+.page_issue,
+.page_issue_archive {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
+
+#section-fulltext img,
+#section-fulltext video,
+#section-fulltext canvas,
+#section-fulltext iframe,
+#section-fulltext object,
+#section-fulltext embed,
+.obj_article_details .abstract img,
+.pkp_structure_content iframe,
+.pkp_structure_content video {
+    max-width: 100% !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+}
+
+#section-fulltext disp-formula,
+#section-fulltext math,
+#section-fulltext .MathJax,
+#section-fulltext pre,
+#section-fulltext blockquote {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
+}
+
+#kisi-stat-issues-table-box,
+#kisi-stat-top-articles-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+.frontiers-center-main,
+.frontiers-meta-block,
+.kisi-drawer-body,
+.kisi-ref-content,
+.obj_article_summary,
+.cmp_breadcrumbs {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
 }

@@ -628,6 +628,10 @@
                     var rs = parseInt(cellNode.getAttribute("rowspan") || "", 10);
                     if (cs > 1) cell.colSpan = cs;
                     if (rs > 1) cell.rowSpan = rs;
+                    var cellAlign = (cellNode.getAttribute("align") || "").trim().toLowerCase();
+                    if (cellAlign === "center" || cellAlign === "right" || cellAlign === "left") {
+                        cell.setAttribute("align", cellAlign);
+                    }
                     cell.appendChild(buildXmlInlineFragment(cellNode));
                     tr.appendChild(cell);
                 });
@@ -1870,6 +1874,25 @@
                 if (refIdxBefore !== -1) {
                     refOutlineSaved = outlineItems.splice(refIdxBefore, 1)[0];
                 }
+
+                fullTextBlock.querySelectorAll("[align='justify'], [style*='text-align']").forEach(function (alEl) {
+                    if ((alEl.getAttribute("align") || "").toLowerCase() === "justify") {
+                        alEl.removeAttribute("align");
+                    }
+                    if (alEl.style && (alEl.style.textAlign || "").toLowerCase() === "justify") {
+                        alEl.style.textAlign = "left";
+                    }
+                });
+
+                fullTextBlock.querySelectorAll("table").forEach(function (tbl) {
+                    tbl.classList.add("kisi-xml-table");
+                    if (tbl.parentElement && !tbl.parentElement.classList.contains("kisi-xml-table-scroll")) {
+                        var wrapScroll = document.createElement("div");
+                        wrapScroll.className = "kisi-xml-table-scroll";
+                        tbl.parentNode.insertBefore(wrapScroll, tbl);
+                        wrapScroll.appendChild(tbl);
+                    }
+                });
 
                 fullTextWrapper.appendChild(fullTextBlock);
                 fullTextBlock.querySelectorAll("h2, .kisi-jats-h2, h3.article-section-title").forEach(function (secH, sIdx) {

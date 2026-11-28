@@ -47,6 +47,11 @@ class SmkThemePlugin extends ThemePlugin
             $this->removeStyle('font');
         }
 
+        $this->addStyle(
+            'smk-frontiers-font',
+            'https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,300..800;1,6..12,300..800&display=swap',
+            ['baseUrl' => '']
+        );
         $this->addStyle('smk-custom', 'styles/custom.css?v=' . $this->assetVersion('styles/custom.css'));
         $this->addScript('smk-logout-guard', 'js/kisi-logout-guard.js?v=' . $this->assetVersion('js/kisi-logout-guard.js'), ['contexts' => ['frontend', 'backend']]);
         $this->addScript('smk-theme', 'js/kisi-theme.js?v=' . $this->assetVersion('js/kisi-theme.js'));
