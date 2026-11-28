@@ -17,9 +17,9 @@ use PKP\submissionFile\SubmissionFile;
 class SmkThemePlugin extends ThemePlugin
 {
 
-    private const STATS_CACHE_TTL = 21600;
+    private const STATS_CACHE_TTL = 900;
 
-    private const ARTICLE_METRICS_CACHE_TTL = 600;
+    private const ARTICLE_METRICS_CACHE_TTL = 300;
 
     private const ARTICLE_META_CACHE_TTL = 86400;
 
@@ -211,18 +211,20 @@ class SmkThemePlugin extends ThemePlugin
         ];
 
         $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
+        $dayStamp = date('Ymd');
 
         if ($template === 'frontend/pages/indexJournal.tpl') {
             $templateMgr->assign('kisiHeroOptions', $this->buildHeroOptions());
             $payload['pageType'] = 'home';
             $payload['homeStats'] = $this->getCachedData(
-                "kisi_smk_home_stats_v3_{$contextId}_{$protocol}",
+                "kisi_smk_home_stats_v4_{$contextId}_{$protocol}_{$dayStamp}",
                 fn () => $this->computeHomeStats($request, $contextPath, $contextId)
             );
+            $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
         } elseif ($this->isStatisticsRequest($request, $templateMgr)) {
             $payload['pageType'] = 'statistics';
             $payload['fullStats'] = $this->getCachedData(
-                "kisi_smk_full_stats_v3_{$contextId}_{$protocol}",
+                "kisi_smk_full_stats_v4_{$contextId}_{$protocol}_{$dayStamp}",
                 fn () => $this->computeFullStatistics($request, $contextPath, $contextId)
             );
         } elseif (
@@ -238,6 +240,10 @@ class SmkThemePlugin extends ThemePlugin
         } elseif ($template === 'frontend/pages/catalogCategory.tpl') {
             $payload['pageType'] = 'catalogCategory';
             $payload['categoryArticleSdgs'] = $this->computeCatalogCategorySdgs($contextId, $templateMgr);
+            $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
+        } elseif ($template === 'frontend/pages/issue.tpl' || str_ends_with($template, '/issue.tpl')) {
+            $payload['pageType'] = 'issue';
+            $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
         }
 
         $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
@@ -878,6 +884,18 @@ class SmkThemePlugin extends ThemePlugin
     private function fetchContextTotalViews(int $contextId): int
     {
         try {
+            if (Schema::hasTable('metrics_context')) {
+                $dbTotal = (int) DB::table('metrics_context')
+                    ->where('context_id', $contextId)
+                    ->sum('metric');
+                if ($dbTotal > 0) {
+                    return $dbTotal;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
             $contextStats = app()->get('contextStats');
             if ($contextStats && method_exists($contextStats, 'getTotal')) {
                 return (int) $contextStats->getTotal(['contextIds' => [$contextId]]);
@@ -891,7 +909,7 @@ class SmkThemePlugin extends ThemePlugin
     private function fetchRealDailySeries30(int $contextId): array
     {
         $endDate = date('Y-m-d');
-        $startDate = date('Y-m-d', strtotime('-29 days'));
+        $startDate = date('Y-m-d', strtotime('-30 days'));
         $dimDay = defined('PKP\statistics\PKPStatisticsHelper::STATISTICS_DIMENSION_DAY')
             ? PKPStatisticsHelper::STATISTICS_DIMENSION_DAY
             : 'day';
@@ -959,9 +977,13 @@ class SmkThemePlugin extends ThemePlugin
         } catch (\Throwable $e) {
         }
 
-        $series = [];
         $todayKey = date('Y-m-d');
-        for ($offset = 29; $offset >= 0; $offset--) {
+        $todayTotal = ($viewsByDate[$todayKey] ?? 0) + ($downloadsByDate[$todayKey] ?? 0) + ($contextByDate[$todayKey] ?? 0);
+        $startOffset = ($todayTotal > 0) ? 29 : 30;
+        $endOffset = ($todayTotal > 0) ? 0 : 1;
+
+        $series = [];
+        for ($offset = $startOffset; $offset >= $endOffset; $offset--) {
             $ts = strtotime("-{$offset} days");
             $dateKey = date('Y-m-d', $ts);
             $views = $viewsByDate[$dateKey] ?? 0;
@@ -972,8 +994,8 @@ class SmkThemePlugin extends ThemePlugin
 
             $series[] = [
                 'date' => $dateKey,
-                'isToday' => ($dateKey === $todayKey),
-                'shortLabel' => ($dateKey === $todayKey) ? 'Today' : date('d M', $ts),
+                'isToday' => ($offset === $endOffset),
+                'shortLabel' => date('d M', $ts),
                 'fullLabel' => date('D, d M Y', $ts),
                 'visitors' => $totalVisits,
                 'reads' => $reads,
@@ -1085,10 +1107,34 @@ class SmkThemePlugin extends ThemePlugin
 
     private function getCachedAllTimeMetrics(int $contextId): array
     {
+        $dayStamp = date('Ymd');
         return $this->getCachedData(
-            "kisi_smk_alltime_totals_v2_{$contextId}",
+            "kisi_smk_alltime_totals_v3_{$contextId}_{$dayStamp}",
             fn () => $this->fetchSubmissionMetricsMap($contextId, null, null)
         );
+    }
+
+    private function buildSubmissionMetricsLookup(int $contextId): array
+    {
+        $totals = $this->getCachedAllTimeMetrics($contextId);
+        if (empty($totals)) {
+            return [];
+        }
+        $submissions = $this->getCachedPublishedSubmissions($contextId);
+        $lookup = [];
+        foreach ($totals as $subId => $m) {
+            $entry = [
+                'views' => (int) ($m['views'] ?? 0),
+                'downloads' => (int) ($m['downloads'] ?? 0),
+            ];
+            $lookup[(string) $subId] = $entry;
+            if (isset($submissions[$subId]['bestId'])) {
+                $best = (string) $submissions[$subId]['bestId'];
+                $lookup[$best] = $entry;
+                $lookup[strtolower($best)] = $entry;
+            }
+        }
+        return $lookup;
     }
 
     private function getCachedPublishedSubmissions(int $contextId): array

@@ -404,8 +404,15 @@
 
         var dailySeries30 = Array.isArray(fullStats.dailySeries30) ? fullStats.dailySeries30 : [];
         if (dailySeries30.length > 0) {
-            var lastDay = dailySeries30[dailySeries30.length - 1];
-            var prevDay = dailySeries30.length >= 2 ? dailySeries30[dailySeries30.length - 2] : lastDay;
+            var latestIdx = dailySeries30.length - 1;
+            for (var k = dailySeries30.length - 1; k >= Math.max(0, dailySeries30.length - 3); k--) {
+                if ((parseInt(dailySeries30[k].visitors, 10) || 0) > 0) {
+                    latestIdx = k;
+                    break;
+                }
+            }
+            var lastDay = dailySeries30[latestIdx];
+            var prevDay = latestIdx >= 1 ? dailySeries30[latestIdx - 1] : lastDay;
             var sum30 = 0;
             var peakObj = { visitors: 0, fullLabel: "-" };
             dailySeries30.forEach(function (d) {
@@ -415,9 +422,9 @@
             });
 
             document.getElementById("kisi-daily-val-today").textContent = formatInt(lastDay.visitors);
-            document.getElementById("kisi-daily-sub-today").textContent = formatInt(lastDay.views) + " views \u00B7 " + formatInt(lastDay.downloads) + " downloads";
+            document.getElementById("kisi-daily-sub-today").textContent = (lastDay.shortLabel || lastDay.date || "") + " \u00B7 " + formatInt(lastDay.views) + " views \u00B7 " + formatInt(lastDay.downloads) + " downloads";
             document.getElementById("kisi-daily-val-yesterday").textContent = formatInt(prevDay.visitors);
-            document.getElementById("kisi-daily-sub-yesterday").textContent = formatInt(prevDay.views) + " views \u00B7 " + formatInt(prevDay.downloads) + " downloads";
+            document.getElementById("kisi-daily-sub-yesterday").textContent = (prevDay.shortLabel || prevDay.date || "") + " \u00B7 " + formatInt(prevDay.views) + " views \u00B7 " + formatInt(prevDay.downloads) + " downloads";
             document.getElementById("kisi-daily-val-avg").textContent = formatInt(Math.round(sum30 / dailySeries30.length));
             document.getElementById("kisi-daily-val-peak").textContent = formatInt(peakObj.visitors);
             document.getElementById("kisi-daily-sub-peak").textContent = peakObj.visitors > 0 ? ("Recorded on " + peakObj.fullLabel) : "No daily records yet";
@@ -2604,12 +2611,60 @@
         }
     }
 
+    function syncSummaryCardViewcounters(themeData) {
+        var subMap = themeData && themeData.submissionMetrics;
+        if (!subMap || typeof subMap !== "object") return;
+
+        document.querySelectorAll(".obj_article_summary").forEach(function (card) {
+            var titleAnchor = findArticleTitleLink(card) || card.querySelector('a[href*="/article/view/"]');
+            if (!titleAnchor) return;
+            var href = titleAnchor.getAttribute("href") || "";
+            var m = href.match(/\/article\/view\/([^\/?#]+)/i);
+            if (!m || !m[1]) return;
+            var slug = m[1];
+            var realEntry = subMap[slug] || subMap[slug.toLowerCase()];
+            if (!realEntry) return;
+
+            var realV = parseInt(realEntry.views, 10) || 0;
+            var realD = parseInt(realEntry.downloads, 10) || 0;
+
+            card.querySelectorAll(".viewcounter-visible[title]").forEach(function (visEl) {
+                var tAttr = (visEl.getAttribute("title") || "").toLowerCase();
+                var targetVal = null;
+                if (tAttr.indexOf("download") !== -1) targetVal = realD;
+                else if (tAttr.indexOf("view") !== -1) targetVal = realV;
+                if (targetVal === null) return;
+
+                var currNum = parseInt((visEl.textContent || "").replace(/[^\d]/g, ""), 10) || 0;
+                var bestVal = Math.max(currNum, targetVal);
+                var svgIcon = visEl.querySelector("svg");
+                visEl.textContent = "";
+                if (svgIcon) {
+                    visEl.appendChild(svgIcon);
+                    visEl.appendChild(document.createTextNode(" " + formatInt(bestVal)));
+                } else {
+                    visEl.textContent = formatInt(bestVal);
+                }
+            });
+
+            card.querySelectorAll(".viewcounter-sr").forEach(function (srEl) {
+                var srTxt = (srEl.textContent || "").trim();
+                if (/^views?\s*:/i.test(srTxt)) {
+                    srEl.textContent = "Views: " + formatInt(realV);
+                } else if (/^downloads?\s*:/i.test(srTxt)) {
+                    srEl.textContent = "Downloads: " + formatInt(realD);
+                }
+            });
+        });
+    }
+
     function initKisiTheme() {
         if (window.__kisiEnhancementsInitialized) return;
         window.__kisiEnhancementsInitialized = true;
 
         var themeData = readThemeData();
         optimizeImagesForPageSpeed();
+        syncSummaryCardViewcounters(themeData);
         document.querySelectorAll(".obj_article_summary").forEach(deduplicateCardMetricNodes);
 
         initStatisticsPage(themeData);
