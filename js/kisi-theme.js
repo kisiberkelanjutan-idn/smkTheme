@@ -82,7 +82,7 @@
     function extractSdgsFromSubjects(combinedSubjects) {
         var detected = [];
         if (!combinedSubjects || !combinedSubjects.trim()) return detected;
-        var sdgRegex = /(?:sdgs?|goals?|tujuan)\s*(?:goals?|#|:|-)?\s*(1[0-7]|0?[1-9])\b/gi;
+        var sdgRegex = /(?:sdgs?|goals?|tujuan)(?:\s*(?:goals?|tujuan|no\.?|nomor|#|:|-|\(?sdgs?\)?))*\s*(1[0-7]|0?[1-9])\b/gi;
         var match;
         while ((match = sdgRegex.exec(combinedSubjects)) !== null) {
             var num = parseInt(match[1], 10);
@@ -2099,13 +2099,184 @@
         }
     }
 
+    function createStatMetricSpan(type, countVal) {
+        var isDl = type === "downloads";
+        var label = isDl ? "Downloads" : "Views";
+        var ns = "http://www.w3.org/2000/svg";
+
+        var wrap = document.createElement("span");
+        wrap.className = "viewcounter-count";
+
+        var vis = document.createElement("span");
+        vis.className = "viewcounter-visible";
+        vis.setAttribute("aria-hidden", "true");
+        vis.setAttribute("title", label);
+
+        var svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("width", "15");
+        svg.setAttribute("height", "15");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("stroke", "currentColor");
+        svg.setAttribute("stroke-width", "2");
+        svg.setAttribute("stroke-linecap", "round");
+        svg.setAttribute("stroke-linejoin", "round");
+        svg.setAttribute("aria-hidden", "true");
+
+        if (isDl) {
+            var p1 = document.createElementNS(ns, "path");
+            p1.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4");
+            var poly = document.createElementNS(ns, "polyline");
+            poly.setAttribute("points", "7 10 12 15 17 10");
+            var ln = document.createElementNS(ns, "line");
+            ln.setAttribute("x1", "12");
+            ln.setAttribute("y1", "15");
+            ln.setAttribute("x2", "12");
+            ln.setAttribute("y2", "3");
+            svg.appendChild(p1);
+            svg.appendChild(poly);
+            svg.appendChild(ln);
+        } else {
+            var pEye = document.createElementNS(ns, "path");
+            pEye.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
+            var circ = document.createElementNS(ns, "circle");
+            circ.setAttribute("cx", "12");
+            circ.setAttribute("cy", "12");
+            circ.setAttribute("r", "3");
+            svg.appendChild(pEye);
+            svg.appendChild(circ);
+        }
+
+        vis.appendChild(svg);
+        vis.appendChild(document.createTextNode(" " + formatInt(countVal)));
+
+        var sr = document.createElement("span");
+        sr.className = "viewcounter-sr";
+        sr.textContent = label + ": " + formatInt(countVal);
+
+        wrap.appendChild(vis);
+        wrap.appendChild(sr);
+        return wrap;
+    }
+
+    function buildAutoSdgArticleCard(art) {
+        var li = document.createElement("li");
+        li.setAttribute("data-kisi-auto-sdg", "1");
+
+        var summary = document.createElement("div");
+        summary.className = "obj_article_summary";
+
+        var artUrl = sanitizeUrl(art.url, "#");
+        var safeCover = sanitizeUrl(art.coverUrl, "");
+        if (safeCover && safeCover !== "#") {
+            var coverDiv = document.createElement("div");
+            coverDiv.className = "cover";
+            var coverA = document.createElement("a");
+            coverA.href = artUrl;
+            coverA.className = "file";
+            var coverImg = document.createElement("img");
+            coverImg.src = safeCover;
+            coverImg.alt = art.coverAlt || art.title || "Article cover";
+            coverImg.loading = "lazy";
+            coverImg.decoding = "async";
+            coverA.appendChild(coverImg);
+            coverDiv.appendChild(coverA);
+            summary.appendChild(coverDiv);
+        }
+
+        var titleH3 = document.createElement("h3");
+        titleH3.className = "title";
+        var titleA = document.createElement("a");
+        titleA.id = "article-" + String(art.id || "");
+        titleA.href = artUrl;
+        titleA.textContent = art.title || ("Article #" + String(art.id || ""));
+        titleH3.appendChild(titleA);
+        summary.appendChild(titleH3);
+
+        var metaDiv = document.createElement("div");
+        metaDiv.className = "meta";
+        if (art.authors) {
+            var authDiv = document.createElement("div");
+            authDiv.className = "authors";
+            authDiv.textContent = art.authors;
+            metaDiv.appendChild(authDiv);
+        }
+        if (art.pages) {
+            var pagesDiv = document.createElement("div");
+            pagesDiv.className = "pages";
+            pagesDiv.textContent = art.pages;
+            metaDiv.appendChild(pagesDiv);
+        }
+        summary.appendChild(metaDiv);
+
+        var vcWrap = document.createElement("span");
+        vcWrap.className = "viewcounter-stats viewcounter-stats--summary";
+        vcWrap.setAttribute("data-vc-place", "summary");
+        vcWrap.appendChild(createStatMetricSpan("views", art.views || 0));
+        vcWrap.appendChild(createStatMetricSpan("downloads", art.downloads || 0));
+        summary.appendChild(vcWrap);
+
+        li.appendChild(summary);
+        return li;
+    }
+
     function initCatalogCategoryPage(themeData) {
         var catalogPage = document.querySelector("div.page.page_catalog_category");
         if (!catalogPage) return;
 
+        var sdgSummary = themeData.sdgCatalogSummary || null;
+        var listUl = catalogPage.querySelector("ul.cmp_article_list.articles");
+        var existingItems = listUl ? Array.from(listUl.querySelectorAll(":scope > li")) : [];
+        var isFirstPage = !catalogPage.querySelector(".cmp_pagination .prev");
+
+        if (sdgSummary && isFirstPage && Array.isArray(sdgSummary.extraArticles) && sdgSummary.extraArticles.length > 0) {
+            if (!listUl) {
+                listUl = document.createElement("ul");
+                listUl.className = "cmp_article_list articles";
+                catalogPage.appendChild(listUl);
+            }
+            var presentKeys = {};
+            existingItems.forEach(function (li) {
+                var aEl = findArticleTitleLink(li);
+                if (!aEl) return;
+                var href = aEl.getAttribute("href") || "";
+                var m = href.match(/\/article\/view\/([^\/?#]+)/i);
+                if (m && m[1]) {
+                    presentKeys[String(m[1]).toLowerCase()] = true;
+                }
+                var idAttr = aEl.getAttribute("id") || "";
+                var idNum = idAttr.replace(/^article-/i, "").trim();
+                if (idNum) {
+                    presentKeys[idNum.toLowerCase()] = true;
+                }
+            });
+
+            var insertFrag = document.createDocumentFragment();
+            sdgSummary.extraArticles.forEach(function (art) {
+                var kId = String(art.id || "").toLowerCase();
+                var kBest = String(art.bestId || "").toLowerCase();
+                if ((kId && presentKeys[kId]) || (kBest && presentKeys[kBest])) return;
+                insertFrag.appendChild(buildAutoSdgArticleCard(art));
+            });
+            if (insertFrag.childNodes.length > 0) {
+                listUl.insertBefore(insertFrag, listUl.firstChild);
+            }
+        }
+
         var articlesList = Array.from(catalogPage.querySelectorAll("ul.cmp_article_list.articles > li"));
-        var totalArticlesCount = articlesList.length;
-        if (totalArticlesCount === 0) return;
+        var domCount = articlesList.length;
+        var totalArticlesCount = (sdgSummary && parseInt(sdgSummary.totalArticlesCount, 10) > 0)
+            ? parseInt(sdgSummary.totalArticlesCount, 10)
+            : domCount;
+
+        if (sdgSummary && totalArticlesCount > 0) {
+            var countEl = catalogPage.querySelector(".article_count");
+            if (countEl) {
+                countEl.textContent = formatInt(totalArticlesCount) + (totalArticlesCount === 1 ? " Item" : " Items");
+            }
+        }
+
+        if (totalArticlesCount === 0 && domCount === 0) return;
 
         var oldDashboard = catalogPage.querySelector(".sdg-analytics-dashboard");
         if (oldDashboard) oldDashboard.remove();
@@ -2140,9 +2311,26 @@
             catalogPage.insertBefore(analyticsPanel, catalogPage.firstChild);
         }
 
-        var categoryMap = themeData.categoryArticleSdgs || {};
+        var categoryMap = {};
+        var rawCatMap = themeData.categoryArticleSdgs || {};
+        Object.keys(rawCatMap).forEach(function (k) { categoryMap[k] = rawCatMap[k]; });
+        if (sdgSummary && sdgSummary.articleSdgs && typeof sdgSummary.articleSdgs === "object") {
+            Object.keys(sdgSummary.articleSdgs).forEach(function (k) { categoryMap[k] = sdgSummary.articleSdgs[k]; });
+        }
+
         var sdgCounts = {};
         Object.keys(SDG_CATALOG).forEach(function (k) { sdgCounts[k] = 0; });
+
+        var hasServerPillarCounts = false;
+        if (sdgSummary && sdgSummary.pillarCounts && typeof sdgSummary.pillarCounts === "object") {
+            Object.keys(SDG_CATALOG).forEach(function (k) {
+                var val = parseInt(sdgSummary.pillarCounts[k], 10) || 0;
+                if (val > 0) {
+                    sdgCounts[k] = val;
+                    hasServerPillarCounts = true;
+                }
+            });
+        }
 
         articlesList.forEach(function (li) {
             var titleEl = li.querySelector(".title");
@@ -2165,7 +2353,9 @@
                 foundSdgs.forEach(function (num) {
                     var s = SDG_CATALOG[num];
                     if (!s) return;
-                    sdgCounts[num] = (sdgCounts[num] || 0) + 1;
+                    if (!hasServerPillarCounts) {
+                        sdgCounts[num] = (sdgCounts[num] || 0) + 1;
+                    }
                     var pill = document.createElement("span");
                     pill.className = "category-sdg-pill";
                     pill.style.backgroundColor = s.color;
@@ -2189,7 +2379,7 @@
         var progressBarsHtml = "";
         sortedSdgNums.forEach(function (num) {
             var count = sdgCounts[num];
-            var percentage = Math.round((count / totalArticlesCount) * 100);
+            var percentage = totalArticlesCount > 0 ? Math.min(100, Math.round((count / totalArticlesCount) * 100)) : 0;
             var s = SDG_CATALOG[num];
             progressBarsHtml +=
                 '<div class="sdg-bar-item">' +

@@ -30,6 +30,8 @@ class SmkThemePlugin extends ThemePlugin
 
     private ?array $requestUrlsCache = null;
 
+    private array $submissionsSigCache = [];
+
     public function init(): void
     {
         $this->setParent('defaultthemeplugin');
@@ -212,19 +214,20 @@ class SmkThemePlugin extends ThemePlugin
 
         $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
         $dayStamp = date('Ymd');
+        $stateSig = $this->getSubmissionsStateSignature($contextId);
 
         if ($template === 'frontend/pages/indexJournal.tpl') {
             $templateMgr->assign('kisiHeroOptions', $this->buildHeroOptions());
             $payload['pageType'] = 'home';
             $payload['homeStats'] = $this->getCachedData(
-                "kisi_smk_home_stats_v4_{$contextId}_{$protocol}_{$dayStamp}",
+                "kisi_smk_home_stats_v5_{$contextId}_{$protocol}_{$dayStamp}_{$stateSig}",
                 fn () => $this->computeHomeStats($request, $contextPath, $contextId)
             );
             $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
         } elseif ($this->isStatisticsRequest($request, $templateMgr)) {
             $payload['pageType'] = 'statistics';
             $payload['fullStats'] = $this->getCachedData(
-                "kisi_smk_full_stats_v4_{$contextId}_{$protocol}_{$dayStamp}",
+                "kisi_smk_full_stats_v4_{$contextId}_{$protocol}_{$dayStamp}_{$stateSig}",
                 fn () => $this->computeFullStatistics($request, $contextPath, $contextId)
             );
         } elseif (
@@ -237,10 +240,14 @@ class SmkThemePlugin extends ThemePlugin
         ) {
             $payload['pageType'] = 'article';
             $payload['articleData'] = $this->computeArticlePageData($request, $contextPath, $contextId, $templateMgr);
-        } elseif ($template === 'frontend/pages/catalogCategory.tpl') {
+        } elseif ($template === 'frontend/pages/catalogCategory.tpl' || str_ends_with($template, '/catalogCategory.tpl')) {
             $payload['pageType'] = 'catalogCategory';
             $payload['categoryArticleSdgs'] = $this->computeCatalogCategorySdgs($contextId, $templateMgr);
             $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
+            $sdgSummary = $this->computeSdgCatalogData($request, $contextPath, $contextId, $templateMgr);
+            if ($sdgSummary !== null) {
+                $payload['sdgCatalogSummary'] = $sdgSummary;
+            }
         } elseif ($template === 'frontend/pages/issue.tpl' || str_ends_with($template, '/issue.tpl')) {
             $payload['pageType'] = 'issue';
             $payload['submissionMetrics'] = $this->buildSubmissionMetricsLookup($contextId);
@@ -490,8 +497,9 @@ class SmkThemePlugin extends ThemePlugin
             if ($publication) {
                 $bestId = $article->getBestId();
                 $protocol = strtolower((string) $request->getProtocol()) === 'https' ? 'https' : 'http';
+                $stateSig = $this->getSubmissionsStateSignature($contextId);
                 $metaCached = $this->getCachedData(
-                    "kisi_smk_art_meta_v4_{$contextId}_{$submissionId}_{$pubId}_{$protocol}",
+                    "kisi_smk_art_meta_v5_{$contextId}_{$submissionId}_{$pubId}_{$protocol}_{$stateSig}",
                     function () use ($request, $dispatcher, $contextPath, $bestId, $publication): array {
                         $galleyMeta = [];
                         $xmlDependentImages = [];
@@ -702,7 +710,8 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $ids = array_map(static fn (array $e): int => $e['subId'], $entries);
-        $cacheKey = 'kisi_smk_cat_sdgs_v3_' . $contextId . '_' . md5(implode(',', $ids));
+        $stateSig = $this->getSubmissionsStateSignature($contextId);
+        $cacheKey = 'kisi_smk_cat_sdgs_v4_' . $contextId . '_' . $stateSig . '_' . md5(implode(',', $ids));
 
         try {
             $cached = Cache::get($cacheKey);
@@ -713,18 +722,20 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $pubIds = array_values(array_unique(array_filter(array_map(static fn (array $e): int => $e['pubId'], $entries))));
-        $vocabTextsByPub = $this->fetchControlledVocabTextsByPubIds($pubIds);
+        $textsByPub = $this->fetchPublicationTextsByPubIds($pubIds);
 
         $result = [];
         foreach ($entries as $entry) {
             $pubId = $entry['pubId'];
-            $texts = $vocabTextsByPub[$pubId] ?? [];
-            if ($entry['publication']) {
+            $structuredTexts = $textsByPub[$pubId]['structured'] ?? [];
+            $proseTexts = $textsByPub[$pubId]['prose'] ?? [];
+            if ($entry['publication'] && method_exists($entry['publication'], 'getLocalizedData')) {
                 foreach (['subjects', 'keywords'] as $field) {
-                    $this->flattenMixedTexts($entry['publication']->getLocalizedData($field), $texts);
+                    $this->flattenMixedTexts($entry['publication']->getLocalizedData($field), $structuredTexts);
                 }
+                $this->flattenMixedTexts($entry['publication']->getLocalizedData('abstract'), $proseTexts);
             }
-            $sdgs = $this->extractSdgsFromTexts($texts);
+            $sdgs = $this->extractSdgsFromTexts($structuredTexts, $proseTexts);
             if (!empty($sdgs)) {
                 $subKey = (string) $entry['subId'];
                 $bestKey = (string) $entry['bestId'];
@@ -742,6 +753,104 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         return $result;
+    }
+
+    private function computeSdgCatalogData($request, string $contextPath, int $contextId, $templateMgr): ?array
+    {
+        $category = $templateMgr->getTemplateVars('category');
+        $catPath = (is_object($category) && method_exists($category, 'getPath'))
+            ? strtolower(trim((string) $category->getPath()))
+            : '';
+        if ($catPath === '' && preg_match('#/catalog/category/sdgs(?:/|$)#i', (string) $request->getRequestPath())) {
+            $catPath = 'sdgs';
+        }
+        if ($catPath !== 'sdgs') {
+            return null;
+        }
+
+        $submissions = $this->getCachedPublishedSubmissions($contextId);
+        if (empty($submissions)) {
+            return null;
+        }
+
+        $inCatIds = $this->fetchSdgCategorySubmissionIds($contextId);
+        $inCatMap = array_fill_keys($inCatIds, true);
+        $allTimeMetrics = $this->getCachedAllTimeMetrics($contextId);
+        $dispatcher = Application::get()->getDispatcher();
+
+        $rawPublicDir = trim((string) ($templateMgr->getTemplateVars('publicFilesDir') ?? ''), '/');
+        $baseUrl = rtrim((string) $request->getBaseUrl(), '/');
+        if ($rawPublicDir === '') {
+            $coverBaseDir = $baseUrl . '/public/journals/' . $contextId;
+        } elseif (preg_match('#^https?://#i', $rawPublicDir)) {
+            $coverBaseDir = $rawPublicDir;
+        } else {
+            $coverBaseDir = $baseUrl . '/' . $rawPublicDir;
+        }
+
+        $pillarCounts = [];
+        for ($i = 1; $i <= 17; $i++) {
+            $pillarCounts[(string) $i] = 0;
+        }
+
+        $articleSdgs = [];
+        $unionSubIds = [];
+        $extraArticles = [];
+
+        foreach ($submissions as $subId => $meta) {
+            $sdgs = is_array($meta['sdgs'] ?? null) ? $meta['sdgs'] : [];
+            $inCat = isset($inCatMap[$subId]);
+            if (!$inCat && empty($sdgs)) {
+                continue;
+            }
+            $unionSubIds[$subId] = true;
+            if (!empty($sdgs)) {
+                $bestKey = (string) ($meta['bestId'] ?? $subId);
+                $articleSdgs[(string) $subId] = $sdgs;
+                $articleSdgs[$bestKey] = $sdgs;
+                $articleSdgs[strtolower($bestKey)] = $sdgs;
+                foreach ($sdgs as $num) {
+                    $numKey = (string) ((int) $num);
+                    if (isset($pillarCounts[$numKey])) {
+                        $pillarCounts[$numKey]++;
+                    }
+                }
+            }
+            if (!$inCat && !empty($sdgs)) {
+                $coverUrl = '';
+                $uploadName = trim((string) ($meta['coverUploadName'] ?? ''));
+                if ($uploadName !== '') {
+                    $encoded = ltrim(str_replace('%2F', '/', rawurlencode(ltrim($uploadName, '/'))), '/');
+                    $coverUrl = rtrim($coverBaseDir, '/') . '/' . $encoded;
+                }
+                $m = $allTimeMetrics[$subId] ?? ['views' => 0, 'downloads' => 0];
+                $extraArticles[] = [
+                    'id' => (int) $subId,
+                    'bestId' => (string) ($meta['bestId'] ?? $subId),
+                    'title' => (string) ($meta['title'] ?? ('Article #' . $subId)),
+                    'url' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, $contextPath, 'article', 'view', [$meta['bestId']]),
+                    'authors' => (string) ($meta['authors'] ?? ''),
+                    'pages' => (string) ($meta['pages'] ?? ''),
+                    'coverUrl' => $coverUrl,
+                    'coverAlt' => (string) ($meta['coverAlt'] ?? ''),
+                    'datePublished' => (string) ($meta['datePublished'] ?? ''),
+                    'sdgs' => $sdgs,
+                    'views' => (int) ($m['views'] ?? 0),
+                    'downloads' => (int) ($m['downloads'] ?? 0),
+                ];
+            }
+        }
+
+        usort($extraArticles, static function (array $a, array $b): int {
+            return strcmp($b['datePublished'], $a['datePublished']) ?: ($b['id'] <=> $a['id']);
+        });
+
+        return [
+            'totalArticlesCount' => count($unionSubIds),
+            'pillarCounts' => $pillarCounts,
+            'articleSdgs' => $articleSdgs,
+            'extraArticles' => $extraArticles,
+        ];
     }
 
     private function fetchSubmissionMetricsMap(int $contextId, ?string $dateStart, ?string $dateEnd): array
@@ -1137,10 +1246,136 @@ class SmkThemePlugin extends ThemePlugin
         return $lookup;
     }
 
+    private function getSubmissionsStateSignature(int $contextId): string
+    {
+        if (isset($this->submissionsSigCache[$contextId])) {
+            return $this->submissionsSigCache[$contextId];
+        }
+
+        $parts = [(string) $contextId];
+        try {
+            $q = DB::table('submissions as s')
+                ->join('publications as p', 'p.publication_id', '=', 's.current_publication_id')
+                ->where('s.context_id', $contextId)
+                ->where('s.status', Submission::STATUS_PUBLISHED);
+
+            $select = 'COUNT(*) as cnt, COALESCE(MAX(s.submission_id), 0) as max_sid, COALESCE(MAX(p.publication_id), 0) as max_pid';
+            if (Schema::hasColumn('submissions', 'last_modified')) {
+                $select .= ', MAX(s.last_modified) as sub_mod';
+            }
+            if (Schema::hasColumn('publications', 'last_modified')) {
+                $select .= ', MAX(p.last_modified) as pub_mod';
+            }
+            $row = $q->selectRaw($select)->first();
+            if ($row) {
+                $parts[] = (string) ($row->cnt ?? 0);
+                $parts[] = (string) ($row->max_sid ?? 0);
+                $parts[] = (string) ($row->max_pid ?? 0);
+                $parts[] = (string) ($row->sub_mod ?? '');
+                $parts[] = (string) ($row->pub_mod ?? '');
+            }
+            if (Schema::hasTable('publication_categories') && Schema::hasTable('categories')) {
+                $catCount = (int) DB::table('publication_categories as pc')
+                    ->join('categories as c', 'c.category_id', '=', 'pc.category_id')
+                    ->where('c.context_id', $contextId)
+                    ->count();
+                $parts[] = 'cat' . $catCount;
+            }
+            if (Schema::hasTable('publication_settings')) {
+                $psCount = (int) DB::table('publication_settings as ps')
+                    ->join('publications as p', 'p.publication_id', '=', 'ps.publication_id')
+                    ->join('submissions as s', 's.submission_id', '=', 'p.submission_id')
+                    ->where('s.context_id', $contextId)
+                    ->where('s.status', Submission::STATUS_PUBLISHED)
+                    ->whereColumn('s.current_publication_id', 'p.publication_id')
+                    ->whereIn('ps.setting_name', ['subjects', 'keywords', 'abstract'])
+                    ->count();
+                $parts[] = 'ps' . $psCount;
+            }
+        } catch (\Throwable $e) {
+            $parts[] = date('YmdH');
+        }
+
+        $sig = substr(md5(implode('|', $parts)), 0, 12);
+        $this->submissionsSigCache[$contextId] = $sig;
+        return $sig;
+    }
+
+    private function extractPublicationAuthorsString($publication): string
+    {
+        if (!$publication || !method_exists($publication, 'getData')) {
+            return '';
+        }
+        $authors = $publication->getData('authors');
+        if (empty($authors) && method_exists($publication, 'getId')) {
+            $pubId = (int) $publication->getId();
+            if ($pubId > 0) {
+                try {
+                    $authors = Repo::author()->getCollector()->filterByPublicationIds([$pubId])->getMany();
+                } catch (\Throwable $e) {
+                    $authors = [];
+                }
+            }
+        }
+        $names = [];
+        if (is_iterable($authors)) {
+            foreach ($authors as $author) {
+                if (!is_object($author)) {
+                    continue;
+                }
+                $given = method_exists($author, 'getLocalizedGivenName') ? trim((string) $author->getLocalizedGivenName()) : '';
+                $family = method_exists($author, 'getLocalizedFamilyName') ? trim((string) $author->getLocalizedFamilyName()) : '';
+                $full = trim($given . ' ' . $family);
+                if ($full === '' && method_exists($author, 'getFullName')) {
+                    $full = trim((string) $author->getFullName(false));
+                }
+                if ($full !== '') {
+                    $names[] = $full;
+                }
+            }
+        }
+        return implode(', ', $names);
+    }
+
+    private function extractPublicationCoverMeta($publication): array
+    {
+        $uploadName = '';
+        $altText = '';
+        if (!$publication) {
+            return ['uploadName' => '', 'altText' => ''];
+        }
+        if (method_exists($publication, 'getLocalizedData')) {
+            $loc = $publication->getLocalizedData('coverImage');
+            if (is_array($loc) && !empty($loc['uploadName'])) {
+                $uploadName = trim((string) $loc['uploadName']);
+                $altText = trim((string) ($loc['altText'] ?? ''));
+            }
+        }
+        if ($uploadName === '' && method_exists($publication, 'getData')) {
+            $all = $publication->getData('coverImage');
+            if (is_array($all)) {
+                if (!empty($all['uploadName'])) {
+                    $uploadName = trim((string) $all['uploadName']);
+                    $altText = trim((string) ($all['altText'] ?? ''));
+                } else {
+                    foreach ($all as $item) {
+                        if (is_array($item) && !empty($item['uploadName'])) {
+                            $uploadName = trim((string) $item['uploadName']);
+                            $altText = trim((string) ($item['altText'] ?? ''));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return ['uploadName' => $uploadName, 'altText' => $altText];
+    }
+
     private function getCachedPublishedSubmissions(int $contextId): array
     {
+        $stateSig = $this->getSubmissionsStateSignature($contextId);
         return $this->getCachedData(
-            "kisi_smk_pub_submissions_v3_{$contextId}",
+            "kisi_smk_pub_submissions_v4_{$contextId}_{$stateSig}",
             function () use ($contextId): array {
                 $indexed = [];
                 $rawEntries = [];
@@ -1162,28 +1397,43 @@ class SmkThemePlugin extends ThemePlugin
                         if ($pubId > 0) {
                             $pubIds[] = $pubId;
                         }
+                        $coverMeta = $this->extractPublicationCoverMeta($publication);
                         $rawEntries[$subId] = [
                             'id' => $subId,
                             'pubId' => $pubId,
                             'bestId' => (string) $submission->getBestId(),
                             'title' => trim(strip_tags((string) $publication->getLocalizedFullTitle())) ?: ('Article #' . $subId),
+                            'authors' => $this->extractPublicationAuthorsString($publication),
+                            'pages' => trim((string) ($publication->getData('pages') ?? '')),
+                            'coverUploadName' => $coverMeta['uploadName'],
+                            'coverAlt' => $coverMeta['altText'],
+                            'datePublished' => substr((string) ($publication->getData('datePublished') ?? ''), 0, 10),
                             'issueId' => (int) ($publication->getData('issueId') ?? 0),
                             'publication' => $publication,
                         ];
                     }
 
-                    $vocabByPub = $this->fetchControlledVocabTextsByPubIds($pubIds);
+                    $textsByPub = $this->fetchPublicationTextsByPubIds($pubIds);
                     foreach ($rawEntries as $subId => $item) {
-                        $texts = $vocabByPub[$item['pubId']] ?? [];
-                        foreach (['subjects', 'keywords'] as $field) {
-                            $this->flattenMixedTexts($item['publication']->getLocalizedData($field), $texts);
+                        $structuredTexts = $textsByPub[$item['pubId']]['structured'] ?? [];
+                        $proseTexts = $textsByPub[$item['pubId']]['prose'] ?? [];
+                        if (method_exists($item['publication'], 'getLocalizedData')) {
+                            foreach (['subjects', 'keywords'] as $field) {
+                                $this->flattenMixedTexts($item['publication']->getLocalizedData($field), $structuredTexts);
+                            }
+                            $this->flattenMixedTexts($item['publication']->getLocalizedData('abstract'), $proseTexts);
                         }
                         $indexed[$subId] = [
                             'id' => $item['id'],
                             'bestId' => $item['bestId'],
                             'title' => $item['title'],
+                            'authors' => $item['authors'],
+                            'pages' => $item['pages'],
+                            'coverUploadName' => $item['coverUploadName'],
+                            'coverAlt' => $item['coverAlt'],
+                            'datePublished' => $item['datePublished'],
                             'issueId' => $item['issueId'],
-                            'sdgs' => $this->extractSdgsFromTexts($texts),
+                            'sdgs' => $this->extractSdgsFromTexts($structuredTexts, $proseTexts),
                         ];
                     }
                 } catch (\Throwable $e) {
@@ -1275,36 +1525,64 @@ class SmkThemePlugin extends ThemePlugin
         }
     }
 
-    private function countSdgPublishedArticles(int $contextId, array $submissions): int
+    private function fetchSdgCategorySubmissionIds(int $contextId): array
     {
         try {
-            if (Schema::hasTable('categories') && Schema::hasTable('publication_categories')) {
-                $sdgCount = (int) DB::table('publication_categories as pc')
-                    ->join('categories as c', 'c.category_id', '=', 'pc.category_id')
-                    ->join('publications as p', 'p.publication_id', '=', 'pc.publication_id')
-                    ->join('submissions as s', 's.submission_id', '=', 'p.submission_id')
-                    ->where('c.context_id', $contextId)
-                    ->where('c.path', 'sdgs')
-                    ->where('s.context_id', $contextId)
-                    ->where('s.status', Submission::STATUS_PUBLISHED)
-                    ->whereColumn('s.current_publication_id', 'p.publication_id')
-                    ->distinct()
-                    ->count('s.submission_id');
-
-                if ($sdgCount > 0) {
-                    return $sdgCount;
-                }
+            if (!Schema::hasTable('categories') || !Schema::hasTable('publication_categories')) {
+                return [];
             }
+
+            $sdgCategoryIds = DB::table('categories')
+                ->where('context_id', $contextId)
+                ->where('path', 'sdgs')
+                ->pluck('category_id')
+                ->map(static fn ($v): int => (int) $v)
+                ->all();
+
+            if (!empty($sdgCategoryIds) && Schema::hasColumn('categories', 'parent_id')) {
+                $childIds = DB::table('categories')
+                    ->where('context_id', $contextId)
+                    ->whereIn('parent_id', $sdgCategoryIds)
+                    ->pluck('category_id')
+                    ->map(static fn ($v): int => (int) $v)
+                    ->all();
+                $sdgCategoryIds = array_values(array_unique(array_merge($sdgCategoryIds, $childIds)));
+            }
+
+            if (empty($sdgCategoryIds)) {
+                return [];
+            }
+
+            return DB::table('publication_categories as pc')
+                ->join('publications as p', 'p.publication_id', '=', 'pc.publication_id')
+                ->join('submissions as s', 's.submission_id', '=', 'p.submission_id')
+                ->whereIn('pc.category_id', $sdgCategoryIds)
+                ->where('s.context_id', $contextId)
+                ->where('s.status', Submission::STATUS_PUBLISHED)
+                ->whereColumn('s.current_publication_id', 'p.publication_id')
+                ->distinct()
+                ->pluck('s.submission_id')
+                ->map(static fn ($v): int => (int) $v)
+                ->all();
         } catch (\Throwable $e) {
+            return [];
         }
+    }
 
-        $count = 0;
-        foreach ($submissions as $meta) {
-            if (!empty($meta['sdgs'])) {
-                $count++;
+    private function countSdgPublishedArticles(int $contextId, array $submissions): int
+    {
+        $union = [];
+        foreach ($this->fetchSdgCategorySubmissionIds($contextId) as $subId) {
+            if ($subId > 0) {
+                $union[$subId] = true;
             }
         }
-        return $count;
+        foreach ($submissions as $subId => $meta) {
+            if (!empty($meta['sdgs'])) {
+                $union[(int) $subId] = true;
+            }
+        }
+        return count($union);
     }
 
     private function extractPublicationSdgs($publication): array
@@ -1313,23 +1591,26 @@ class SmkThemePlugin extends ThemePlugin
             return [];
         }
 
-        $texts = [];
+        $structuredTexts = [];
+        $proseTexts = [];
         $pubId = method_exists($publication, 'getId') ? (int) $publication->getId() : 0;
         if ($pubId > 0) {
-            $vocabMap = $this->fetchControlledVocabTextsByPubIds([$pubId]);
-            $texts = $vocabMap[$pubId] ?? [];
+            $textsMap = $this->fetchPublicationTextsByPubIds([$pubId]);
+            $structuredTexts = $textsMap[$pubId]['structured'] ?? [];
+            $proseTexts = $textsMap[$pubId]['prose'] ?? [];
         }
 
-        foreach (['subjects', 'keywords'] as $field) {
-            if (method_exists($publication, 'getLocalizedData')) {
-                $this->flattenMixedTexts($publication->getLocalizedData($field), $texts);
+        if (method_exists($publication, 'getLocalizedData')) {
+            foreach (['subjects', 'keywords'] as $field) {
+                $this->flattenMixedTexts($publication->getLocalizedData($field), $structuredTexts);
             }
+            $this->flattenMixedTexts($publication->getLocalizedData('abstract'), $proseTexts);
         }
 
-        return $this->extractSdgsFromTexts($texts);
+        return $this->extractSdgsFromTexts($structuredTexts, $proseTexts);
     }
 
-    private function fetchControlledVocabTextsByPubIds(array $publicationIds): array
+    private function fetchPublicationTextsByPubIds(array $publicationIds): array
     {
         $pubIds = array_values(array_unique(array_filter(array_map('intval', $publicationIds), static fn (int $id): bool => $id > 0)));
         if (empty($pubIds)) {
@@ -1337,6 +1618,10 @@ class SmkThemePlugin extends ThemePlugin
         }
 
         $map = [];
+        foreach ($pubIds as $pid) {
+            $map[$pid] = ['structured' => [], 'prose' => []];
+        }
+
         try {
             if (Schema::hasTable('controlled_vocabs') && Schema::hasTable('controlled_vocab_entries') && Schema::hasTable('controlled_vocab_entry_settings')) {
                 $rows = DB::table('controlled_vocabs as cv')
@@ -1353,7 +1638,7 @@ class SmkThemePlugin extends ThemePlugin
                     $pid = (int) $row->publication_id;
                     $val = trim((string) $row->setting_value);
                     if ($val !== '') {
-                        $map[$pid][] = $val;
+                        $map[$pid]['structured'][] = $val;
                     }
                 }
             }
@@ -1364,10 +1649,10 @@ class SmkThemePlugin extends ThemePlugin
             if (Schema::hasTable('publication_settings')) {
                 $psRows = DB::table('publication_settings')
                     ->whereIn('publication_id', $pubIds)
-                    ->whereIn('setting_name', ['subjects', 'keywords'])
+                    ->whereIn('setting_name', ['subjects', 'keywords', 'abstract'])
                     ->whereNotNull('setting_value')
                     ->where('setting_value', '!=', '')
-                    ->select('publication_id', 'setting_value')
+                    ->select('publication_id', 'setting_name', 'setting_value')
                     ->get();
 
                 foreach ($psRows as $row) {
@@ -1376,11 +1661,12 @@ class SmkThemePlugin extends ThemePlugin
                     if ($raw === '') {
                         continue;
                     }
+                    $bucket = ((string) $row->setting_name === 'abstract') ? 'prose' : 'structured';
                     $decoded = json_decode($raw, true);
                     if (is_array($decoded)) {
-                        $this->flattenMixedTexts($decoded, $map[$pid]);
+                        $this->flattenMixedTexts($decoded, $map[$pid][$bucket]);
                     } else {
-                        $map[$pid][] = $raw;
+                        $map[$pid][$bucket][] = $raw;
                     }
                 }
             }
@@ -1419,47 +1705,92 @@ class SmkThemePlugin extends ThemePlugin
         }
     }
 
-    private function extractSdgsFromTexts(array $texts): array
+    private function extractSdgsFromTexts(array $structuredTexts, array $proseTexts = []): array
     {
-        $combined = trim(implode(' ; ', array_unique($texts)));
-        if ($combined === '') {
-            return [];
-        }
-
         $detected = [];
-        if (preg_match_all('/(?:sdgs?|goals?|tujuan)\s*(?:goals?|#|:|-)?\s*(1[0-7]|0?[1-9])\b/i', $combined, $matches)) {
-            foreach ($matches[1] as $numStr) {
-                $num = (int) $numStr;
-                if ($num >= 1 && $num <= 17 && !in_array($num, $detected, true)) {
-                    $detected[] = $num;
+        $appendNum = static function ($numStr) use (&$detected): void {
+            $num = (int) $numStr;
+            if ($num >= 1 && $num <= 17 && !in_array($num, $detected, true)) {
+                $detected[] = $num;
+            }
+        };
+
+        $structuredClean = [];
+        foreach ($structuredTexts as $t) {
+            $plain = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $t), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');
+            if ($plain !== '') {
+                $structuredClean[] = $plain;
+            }
+        }
+        $combinedStructured = trim(implode(' ; ', array_unique($structuredClean)));
+
+        if ($combinedStructured !== '') {
+            if (preg_match_all('/(?:sdgs?|goals?|tujuan)(?:\s*(?:goals?|tujuan|no\.?|nomor|#|:|-|\(?sdgs?\)?))*\s*(1[0-7]|0?[1-9])\b/iu', $combinedStructured, $matches)) {
+                foreach ($matches[1] as $numStr) {
+                    $appendNum($numStr);
                 }
             }
         }
 
-        if (empty($detected)) {
-            $names = [
-                1 => 'no poverty',
-                2 => 'zero hunger',
-                3 => 'good health and well-being',
-                4 => 'quality education',
-                5 => 'gender equality',
-                6 => 'clean water and sanitation',
-                7 => 'affordable and clean energy',
-                8 => 'decent work and economic growth',
-                9 => 'industry, innovation and infrastructure',
-                10 => 'reduced inequalities',
-                11 => 'sustainable cities and communities',
-                12 => 'responsible consumption and production',
-                13 => 'climate action',
-                14 => 'life below water',
-                15 => 'life on land',
-                16 => 'peace, justice and strong institutions',
-                17 => 'partnerships for the goals',
-            ];
-            $lower = strtolower($combined);
-            foreach ($names as $num => $label) {
-                if (str_contains($lower, $label)) {
-                    $detected[] = $num;
+        $proseClean = [];
+        foreach ($proseTexts as $p) {
+            $plain = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags((string) $p), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? '');
+            if ($plain !== '') {
+                $proseClean[] = $plain;
+            }
+        }
+        $combinedProse = trim(implode(' ; ', array_unique($proseClean)));
+
+        if ($combinedProse !== '') {
+            if (preg_match_all('/\b(?:sustainable\s+development\s+goals?(?:\s*\(\s*(?:tpb|sdgs?)\s*\))?|tujuan\s+pembangunan\s+berkelanjutan(?:\s*\(\s*(?:tpb|sdgs?)\s*\))?|sdgs?)(?:\s*(?:goals?|tujuan|no\.?|nomor|#|:|-|\)|,))*\s*(1[0-7]|0?[1-9])\b/iu', $combinedProse, $pMatches)) {
+                foreach ($pMatches[1] as $numStr) {
+                    $appendNum($numStr);
+                }
+            }
+            if (preg_match('/\b(?:sustainable\s+development\s+goals?|tujuan\s+pembangunan\s+berkelanjutan|sdgs?)\b/iu', $combinedProse, $anchorMatch, PREG_OFFSET_CAPTURE)) {
+                $tail = substr($combinedProse, (int) $anchorMatch[0][1]);
+                if (preg_match_all('/\b(?:goals?|tujuan)\s*(?:#|:|-)?\s*(1[0-7]|0?[1-9])\b(?=\s*(?:\(|:|,|;|\.|—|–|-|\band\b|\bdan\b))/iu', $tail, $gMatches)) {
+                    foreach ($gMatches[1] as $numStr) {
+                        $appendNum($numStr);
+                    }
+                }
+            }
+        }
+
+        $sdgNames = [
+            1 => 'no poverty',
+            2 => 'zero hunger',
+            3 => 'good health and well-being',
+            4 => 'quality education',
+            5 => 'gender equality',
+            6 => 'clean water and sanitation',
+            7 => 'affordable and clean energy',
+            8 => 'decent work and economic growth',
+            9 => 'industry, innovation and infrastructure',
+            10 => 'reduced inequalities',
+            11 => 'sustainable cities and communities',
+            12 => 'responsible consumption and production',
+            13 => 'climate action',
+            14 => 'life below water',
+            15 => 'life on land',
+            16 => 'peace, justice and strong institutions',
+            17 => 'partnerships for the goals',
+        ];
+
+        if (empty($detected) && $combinedStructured !== '') {
+            $lowerStruct = strtolower($combinedStructured);
+            foreach ($sdgNames as $num => $label) {
+                if (str_contains($lowerStruct, $label)) {
+                    $appendNum($num);
+                }
+            }
+        }
+
+        if ($combinedProse !== '' && preg_match('/\b(?:sustainable\s+development\s+goals?|tujuan\s+pembangunan\s+berkelanjutan|sdgs?)\b/iu', $combinedProse, $anchorMatch2, PREG_OFFSET_CAPTURE)) {
+            $lowerTail = strtolower(substr($combinedProse, (int) $anchorMatch2[0][1]));
+            foreach ($sdgNames as $num => $label) {
+                if (str_contains($lowerTail, $label)) {
+                    $appendNum($num);
                 }
             }
         }
