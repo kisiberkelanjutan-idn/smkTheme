@@ -938,8 +938,14 @@
             leftRail.className = "frontiers-left-rail";
             var centerMain = document.createElement("div");
             centerMain.className = "frontiers-center-main";
+            var centerTopMetaSlot = document.createElement("div");
+            centerTopMetaSlot.className = "kisi-center-top-meta-slot";
+            var centerBottomMetaSlot = document.createElement("div");
+            centerBottomMetaSlot.className = "kisi-center-bottom-meta-slot";
             var rightRail = document.createElement("aside");
             rightRail.className = "frontiers-right-rail";
+            var narrowRail = document.createElement("aside");
+            narrowRail.className = "kisi-narrow-rail";
 
             var rawTitleEl = articleDetails.querySelector(".page_title, h1") || document.querySelector("h1.page_title, .page_title");
             var cleanArticleTitle = "";
@@ -1159,6 +1165,8 @@
                     }
                 }
             });
+
+            centerMain.appendChild(centerTopMetaSlot);
 
             if (keywordsItem) {
                 var kwVal = keywordsItem.querySelector(".value");
@@ -1448,7 +1456,10 @@
             }
 
             var editorialPlaceHolder = document.createElement("div");
-            leftRail.appendChild(editorialPlaceHolder);
+            var editorSlotContainer = document.createElement("div");
+            editorSlotContainer.className = "kisi-editor-slot";
+            editorSlotContainer.appendChild(editorialPlaceHolder);
+            leftRail.appendChild(editorSlotContainer);
 
             var subjectCandidateTags = [];
             function addSubjectCandidate(rawValue) {
@@ -1563,7 +1574,7 @@
                     });
 
                     if (matchedEditors.length === 0) {
-                        editorialPlaceHolder.remove();
+                        editorSlotContainer.remove();
                         return;
                     }
 
@@ -1628,14 +1639,15 @@
 
                     edCard.appendChild(edTitle);
                     edCard.appendChild(edList);
-                    editorialPlaceHolder.replaceWith(edCard);
+                    editorSlotContainer.innerHTML = "";
+                    editorSlotContainer.appendChild(edCard);
                 });
             } else {
-                editorialPlaceHolder.remove();
+                editorSlotContainer.remove();
             }
 
             var metricsCard = document.createElement("div");
-            metricsCard.className = "frontiers-card";
+            metricsCard.className = "frontiers-card frontiers-metrics-card";
             var artMetrics = articleData.metrics || {};
             var phpViews = parseMetricInt(artMetrics.views);
             var phpDownloads = parseMetricInt(artMetrics.downloads);
@@ -1643,14 +1655,32 @@
             var initialViews = hasServerMetrics ? phpViews : domInitMetrics.views;
             var initialDownloads = hasServerMetrics ? phpDownloads : domInitMetrics.downloads;
             metricsCard.innerHTML =
-                '<div class="frontiers-card-title">Article Metrics</div>' +
-                '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-views-val" class="frontiers-metrics-number">' + formatInt(initialViews) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
-                '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-downloads-val" class="frontiers-metrics-number">' + formatInt(initialDownloads) + '</span><span class="frontiers-metrics-label">Total PDF Downloads</span></div></div>';
+                '<div class="frontiers-card-title frontiers-metrics-heading">' +
+                    '<svg class="kisi-ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' +
+                    '<span>Article Metrics</span>' +
+                '</div>' +
+                '<div class="frontiers-metrics-items">' +
+                    '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-views-val" class="frontiers-metrics-number">' + formatInt(initialViews) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
+                    '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span id="kisi-metric-downloads-val" class="frontiers-metrics-number">' + formatInt(initialDownloads) + '</span><span class="frontiers-metrics-label">Total PDF Downloads</span></div></div>' +
+                '</div>' +
+                '<button type="button" class="kisi-metrics-details-btn">View details</button>';
 
             var outlinePlaceHolder = document.createElement("div");
             leftRail.appendChild(outlinePlaceHolder);
 
             var outlineScrollSpyCleanup = null;
+            var activeOutlineId = "";
+            var refreshOutlineDrawerCallback = null;
+
+            function scrollToOutlineSection(secId) {
+                var secNode = document.getElementById(secId);
+                if (!secNode) return;
+                var targetTop = secNode.getBoundingClientRect().top + window.pageYOffset - 24;
+                window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+                if (window.history && typeof window.history.replaceState === "function") {
+                    window.history.replaceState(null, "", "#" + secId);
+                }
+            }
 
             function renderOutlineCard() {
                 if (outlineScrollSpyCleanup) {
@@ -1659,7 +1689,13 @@
                 }
                 if (outlineItems.length === 0) {
                     outlinePlaceHolder.innerHTML = "";
+                    if (typeof refreshOutlineDrawerCallback === "function") {
+                        refreshOutlineDrawerCallback();
+                    }
                     return;
+                }
+                if (!activeOutlineId) {
+                    activeOutlineId = outlineItems[0].id;
                 }
                 var card = document.createElement("div");
                 card.className = "frontiers-card frontiers-outline-card";
@@ -1671,6 +1707,7 @@
 
                 var anchorById = {};
                 function setActiveOutlineId(activeId, syncListScroll) {
+                    activeOutlineId = activeId;
                     Object.keys(anchorById).forEach(function (idKey) {
                         var linkEl = anchorById[idKey];
                         if (idKey === activeId) {
@@ -1688,24 +1725,23 @@
                             linkEl.classList.remove("active");
                         }
                     });
+                    if (typeof refreshOutlineDrawerCallback === "function") {
+                        refreshOutlineDrawerCallback();
+                    }
                 }
 
                 outlineItems.forEach(function (item, idx) {
                     var li = document.createElement("li");
                     var a = document.createElement("a");
                     a.href = "#" + item.id;
-                    if (idx === 0) a.className = "active";
+                    if (item.id === activeOutlineId || (!activeOutlineId && idx === 0)) a.className = "active";
                     a.textContent = item.title;
                     a.addEventListener("click", function (ev) {
                         var secNode = document.getElementById(item.id);
                         if (!secNode) return;
                         ev.preventDefault();
                         setActiveOutlineId(item.id, false);
-                        var targetTop = secNode.getBoundingClientRect().top + window.pageYOffset - 24;
-                        window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-                        if (window.history && typeof window.history.replaceState === "function") {
-                            window.history.replaceState(null, "", "#" + item.id);
-                        }
+                        scrollToOutlineSection(item.id);
                     });
                     anchorById[item.id] = a;
                     li.appendChild(a);
@@ -1726,7 +1762,7 @@
                                 currentId = outlineItems[i].id;
                             }
                         }
-                        if (currentId) {
+                        if (currentId && currentId !== activeOutlineId) {
                             setActiveOutlineId(currentId, true);
                         }
                     });
@@ -1741,10 +1777,14 @@
                 card.appendChild(ul);
                 outlinePlaceHolder.innerHTML = "";
                 outlinePlaceHolder.appendChild(card);
+                if (typeof refreshOutlineDrawerCallback === "function") {
+                    refreshOutlineDrawerCallback();
+                }
             }
 
+            var citeCard = null;
             if (citationItem) {
-                var citeCard = document.createElement("div");
+                citeCard = document.createElement("div");
                 citeCard.className = "frontiers-card";
                 citeCard.appendChild(citationItem);
                 leftRail.appendChild(citeCard);
@@ -1907,7 +1947,7 @@
             }
 
             var rightCard = document.createElement("div");
-            rightCard.className = "frontiers-card";
+            rightCard.className = "frontiers-card frontiers-right-card";
             if (coverImg) rightCard.appendChild(coverImg);
             var promoInfo = document.createElement("div");
             promoInfo.innerHTML = '<h4 class="frontiers-promo-title">Rigorous peer review makes science stronger</h4><p class="frontiers-promo-text">Behind every published article in Kisi Berkelanjutan stands an editorial team safeguarding scientific quality and health impact.</p>';
@@ -1920,9 +1960,10 @@
                 ? articleData.sdgNumbers
                 : extractSdgsFromSubjects(subjectCandidateTags.join(" ; "));
 
+            var sdgCard = null;
             if (detectedSdgs.length > 0) {
-                var sdgCard = document.createElement("div");
-                sdgCard.className = "frontiers-card";
+                sdgCard = document.createElement("div");
+                sdgCard.className = "frontiers-card frontiers-sdg-card";
                 var sdgTitle = document.createElement("div");
                 sdgTitle.className = "frontiers-card-title";
                 sdgTitle.textContent = "UN SDGs Contribution";
@@ -1981,10 +2022,323 @@
                 rightRail.appendChild(sdgCard);
             }
 
+            centerMain.appendChild(centerBottomMetaSlot);
+
             articleDetails.innerHTML = "";
             articleDetails.appendChild(leftRail);
             articleDetails.appendChild(centerMain);
             articleDetails.appendChild(rightRail);
+            articleDetails.appendChild(narrowRail);
+
+            (function setupResponsiveArticleMode() {
+                var drawerBackdrop = document.createElement("div");
+                drawerBackdrop.className = "kisi-drawer-backdrop";
+                drawerBackdrop.setAttribute("aria-hidden", "true");
+                var drawerPanel = document.createElement("div");
+                drawerPanel.className = "kisi-drawer-panel";
+                drawerPanel.setAttribute("role", "dialog");
+                drawerPanel.setAttribute("aria-modal", "true");
+
+                var drawerHeader = document.createElement("div");
+                drawerHeader.className = "kisi-drawer-header";
+                var drawerTitle = document.createElement("h3");
+                drawerTitle.className = "kisi-drawer-title";
+                var drawerCloseBtn = document.createElement("button");
+                drawerCloseBtn.type = "button";
+                drawerCloseBtn.className = "kisi-drawer-close";
+                drawerCloseBtn.setAttribute("aria-label", "Close panel");
+                drawerCloseBtn.innerHTML = "&times;";
+                drawerHeader.appendChild(drawerTitle);
+                drawerHeader.appendChild(drawerCloseBtn);
+
+                var drawerBody = document.createElement("div");
+                drawerBody.className = "kisi-drawer-body";
+
+                drawerPanel.appendChild(drawerHeader);
+                drawerPanel.appendChild(drawerBody);
+                drawerBackdrop.appendChild(drawerPanel);
+                document.body.appendChild(drawerBackdrop);
+
+                var currentDrawerTab = "";
+
+                function closeDrawer() {
+                    drawerBackdrop.classList.remove("is-open");
+                    drawerBackdrop.setAttribute("aria-hidden", "true");
+                    document.body.classList.remove("kisi-drawer-open");
+                    currentDrawerTab = "";
+                }
+
+                drawerCloseBtn.addEventListener("click", closeDrawer);
+                drawerBackdrop.addEventListener("click", function (ev) {
+                    if (ev.target === drawerBackdrop) closeDrawer();
+                });
+                document.addEventListener("keydown", function (ev) {
+                    if (ev.key === "Escape" && drawerBackdrop.classList.contains("is-open")) {
+                        closeDrawer();
+                    }
+                });
+
+                function populateOutlineDrawerBody() {
+                    drawerTitle.textContent = "Article Outline";
+                    drawerBody.innerHTML = "";
+                    if (outlineItems.length === 0) {
+                        var emptyP = document.createElement("p");
+                        emptyP.className = "kisi-drawer-empty";
+                        emptyP.textContent = "No article sections found.";
+                        drawerBody.appendChild(emptyP);
+                        return;
+                    }
+                    var ul = document.createElement("ul");
+                    ul.className = "kisi-drawer-outline-list";
+                    outlineItems.forEach(function (item) {
+                        var li = document.createElement("li");
+                        var a = document.createElement("a");
+                        a.href = "#" + item.id;
+                        if (item.id === activeOutlineId) a.classList.add("active");
+                        a.textContent = item.title;
+                        a.addEventListener("click", function (ev) {
+                            ev.preventDefault();
+                            activeOutlineId = item.id;
+                            closeDrawer();
+                            scrollToOutlineSection(item.id);
+                        });
+                        li.appendChild(a);
+                        ul.appendChild(li);
+                    });
+                    drawerBody.appendChild(ul);
+                }
+
+                refreshOutlineDrawerCallback = function () {
+                    if (currentDrawerTab === "outline" && drawerBackdrop.classList.contains("is-open")) {
+                        populateOutlineDrawerBody();
+                    }
+                };
+
+                function populateMetricsDrawerBody() {
+                    drawerTitle.textContent = "Article Metrics & Impact";
+                    drawerBody.innerHTML = "";
+
+                    var curV = (document.getElementById("kisi-metric-views-val") || {}).textContent || formatInt(initialViews);
+                    var curD = (document.getElementById("kisi-metric-downloads-val") || {}).textContent || formatInt(initialDownloads);
+
+                    var grid = document.createElement("div");
+                    grid.className = "kisi-drawer-metrics-grid";
+                    grid.innerHTML =
+                        '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span class="frontiers-metrics-number">' + escapeHtml(curV) + '</span><span class="frontiers-metrics-label">Total Article Views</span></div></div>' +
+                        '<div class="frontiers-metrics-box"><div class="frontiers-metrics-content"><span class="frontiers-metrics-number">' + escapeHtml(curD) + '</span><span class="frontiers-metrics-label">Total PDF Downloads</span></div></div>';
+                    drawerBody.appendChild(grid);
+
+                    if (sdgCard) {
+                        var sdgClone = sdgCard.cloneNode(true);
+                        sdgClone.className = "kisi-drawer-section-card";
+                        drawerBody.appendChild(sdgClone);
+                    }
+                    if (topicCard) {
+                        var issueClone = topicCard.cloneNode(true);
+                        issueClone.className = "kisi-drawer-section-card";
+                        drawerBody.appendChild(issueClone);
+                    }
+                }
+
+                function populateShareDrawerBody() {
+                    drawerTitle.textContent = "Share & Cite Article";
+                    drawerBody.innerHTML = "";
+
+                    var articleUrl = window.location.href;
+                    var encodedUrl = encodeURIComponent(articleUrl);
+                    var encodedTitle = encodeURIComponent(cleanArticleTitle || document.title || "");
+
+                    var shareGrid = document.createElement("div");
+                    shareGrid.className = "kisi-drawer-share-grid";
+                    [
+                        { label: "WhatsApp", href: "https://api.whatsapp.com/send?text=" + encodeURIComponent((cleanArticleTitle || "") + " " + articleUrl) },
+                        { label: "X / Twitter", href: "https://twitter.com/intent/tweet?text=" + encodedTitle + "&url=" + encodedUrl },
+                        { label: "LinkedIn", href: "https://www.linkedin.com/sharing/share-offsite/?url=" + encodedUrl },
+                        { label: "Email", href: "mailto:?subject=" + encodedTitle + "&body=" + encodedUrl }
+                    ].forEach(function (item) {
+                        var a = document.createElement("a");
+                        a.href = item.href;
+                        if (item.href.indexOf("mailto:") !== 0) {
+                            a.target = "_blank";
+                            a.rel = "noopener noreferrer";
+                        }
+                        a.className = "kisi-drawer-share-pill";
+                        a.textContent = item.label;
+                        shareGrid.appendChild(a);
+                    });
+
+                    var copyLinkBtn = document.createElement("button");
+                    copyLinkBtn.type = "button";
+                    copyLinkBtn.className = "kisi-drawer-copy-btn";
+                    copyLinkBtn.textContent = "Copy Article Link";
+                    copyLinkBtn.addEventListener("click", function () {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(articleUrl).then(function () {
+                                copyLinkBtn.textContent = "Link Copied!";
+                                setTimeout(function () { copyLinkBtn.textContent = "Copy Article Link"; }, 1800);
+                            }).catch(function () {});
+                        }
+                    });
+
+                    drawerBody.appendChild(shareGrid);
+                    drawerBody.appendChild(copyLinkBtn);
+
+                    if (pdfUrl !== "#") {
+                        var dlA = document.createElement("a");
+                        dlA.href = pdfUrl;
+                        dlA.className = "frontiers-info-banner-btn kisi-drawer-dl-btn";
+                        dlA.textContent = pdfBtnLabel + " \u2193";
+                        drawerBody.appendChild(dlA);
+                    }
+
+                    if (citationItem) {
+                        var citeWrap = document.createElement("div");
+                        citeWrap.className = "kisi-drawer-section-card";
+                        var citeHead = document.createElement("div");
+                        citeHead.className = "frontiers-card-title";
+                        citeHead.textContent = "How to Cite";
+                        var citeTextBox = document.createElement("div");
+                        citeTextBox.className = "kisi-drawer-cite-text";
+                        var valEl = citationItem.querySelector(".value") || citationItem;
+                        citeTextBox.textContent = (valEl.textContent || "").replace(/^\s*how\s+to\s+cite\s*:?/i, "").replace(/\s+/g, " ").trim();
+                        citeWrap.appendChild(citeHead);
+                        citeWrap.appendChild(citeTextBox);
+
+                        var copyCiteBtn = document.createElement("button");
+                        copyCiteBtn.type = "button";
+                        copyCiteBtn.className = "kisi-drawer-copy-btn secondary";
+                        copyCiteBtn.textContent = "Copy Citation";
+                        copyCiteBtn.addEventListener("click", function () {
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(citeTextBox.textContent).then(function () {
+                                    copyCiteBtn.textContent = "Citation Copied!";
+                                    setTimeout(function () { copyCiteBtn.textContent = "Copy Citation"; }, 1800);
+                                }).catch(function () {});
+                            }
+                        });
+                        citeWrap.appendChild(copyCiteBtn);
+                        drawerBody.appendChild(citeWrap);
+                    }
+                }
+
+                function openDrawer(tabName) {
+                    currentDrawerTab = tabName;
+                    if (tabName === "outline") populateOutlineDrawerBody();
+                    else if (tabName === "metrics") populateMetricsDrawerBody();
+                    else populateShareDrawerBody();
+                    drawerBackdrop.classList.add("is-open");
+                    drawerBackdrop.setAttribute("aria-hidden", "false");
+                    document.body.classList.add("kisi-drawer-open");
+                }
+
+                var metricsDetailsBtn = metricsCard.querySelector(".kisi-metrics-details-btn");
+                if (metricsDetailsBtn) {
+                    metricsDetailsBtn.addEventListener("click", function () {
+                        openDrawer("metrics");
+                    });
+                }
+
+                var shareSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+                var metricsSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+                var outlineSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+                var topSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+
+                function makeActionBtn(cls, svgHtml, labelText, onClickFn) {
+                    var b = document.createElement("button");
+                    b.type = "button";
+                    b.className = cls;
+                    b.innerHTML = svgHtml + '<span>' + escapeHtml(labelText) + '</span>';
+                    b.addEventListener("click", onClickFn);
+                    return b;
+                }
+
+                var narrowStack = document.createElement("div");
+                narrowStack.className = "kisi-narrow-sticky-stack";
+                var narrowPill = document.createElement("div");
+                narrowPill.className = "kisi-narrow-pill";
+                narrowPill.appendChild(makeActionBtn("kisi-pill-btn", shareSvg, "Share", function () { openDrawer("share"); }));
+                narrowPill.appendChild(makeActionBtn("kisi-pill-btn", metricsSvg, "Metrics", function () { openDrawer("metrics"); }));
+                var backTopBtn = document.createElement("button");
+                backTopBtn.type = "button";
+                backTopBtn.className = "kisi-narrow-top-btn";
+                backTopBtn.setAttribute("aria-label", "Back to top");
+                backTopBtn.innerHTML = topSvg;
+                backTopBtn.addEventListener("click", function () {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                });
+                narrowStack.appendChild(narrowPill);
+                narrowStack.appendChild(backTopBtn);
+                narrowRail.appendChild(narrowStack);
+
+                var mobileToolbar = document.createElement("div");
+                mobileToolbar.className = "kisi-floating-toolbar";
+                mobileToolbar.setAttribute("role", "toolbar");
+                mobileToolbar.setAttribute("aria-label", "Article tools");
+                mobileToolbar.appendChild(makeActionBtn("kisi-toolbar-btn", outlineSvg, "Outline", function () { openDrawer("outline"); }));
+                mobileToolbar.appendChild(makeActionBtn("kisi-toolbar-btn", shareSvg, "Share", function () { openDrawer("share"); }));
+                mobileToolbar.appendChild(makeActionBtn("kisi-toolbar-btn", metricsSvg, "Metrics", function () { openDrawer("metrics"); }));
+                document.body.appendChild(mobileToolbar);
+
+                var mqSingleCol = window.matchMedia("(max-width: 1024px), (max-width: 1180px) and (orientation: portrait)");
+                var mqNarrowDesk = window.matchMedia("(max-width: 1240px)");
+
+                function syncResponsiveSlots() {
+                    var isSingle = mqSingleCol.matches;
+                    var isNarrow = !isSingle && mqNarrowDesk.matches;
+
+                    articleDetails.classList.toggle("kisi-mode-single", isSingle);
+                    articleDetails.classList.toggle("kisi-mode-narrow", isNarrow);
+                    articleDetails.classList.toggle("kisi-mode-wide", !isSingle && !isNarrow);
+
+                    if (isSingle) {
+                        metricsCard.classList.add("is-inline-metrics");
+                        centerTopMetaSlot.appendChild(metricsCard);
+                        centerTopMetaSlot.appendChild(infoBanner);
+
+                        centerBottomMetaSlot.appendChild(editorSlotContainer);
+                        if (sdgCard) centerBottomMetaSlot.appendChild(sdgCard);
+                        centerBottomMetaSlot.appendChild(rightCard);
+                        if (citeCard) centerBottomMetaSlot.appendChild(citeCard);
+                        centerBottomMetaSlot.appendChild(topicCard);
+                        if (publicationCard) centerBottomMetaSlot.appendChild(publicationCard);
+                    } else if (isNarrow) {
+                        metricsCard.classList.add("is-inline-metrics");
+                        centerTopMetaSlot.appendChild(metricsCard);
+                        centerTopMetaSlot.appendChild(infoBanner);
+
+                        if (sdgCard) centerBottomMetaSlot.appendChild(sdgCard);
+                        centerBottomMetaSlot.appendChild(rightCard);
+
+                        leftRail.appendChild(topicCard);
+                        if (publicationCard) leftRail.appendChild(publicationCard);
+                        leftRail.appendChild(editorSlotContainer);
+                        leftRail.appendChild(outlinePlaceHolder);
+                        if (citeCard) leftRail.appendChild(citeCard);
+                    } else {
+                        metricsCard.classList.remove("is-inline-metrics");
+
+                        leftRail.appendChild(topicCard);
+                        if (publicationCard) leftRail.appendChild(publicationCard);
+                        leftRail.appendChild(editorSlotContainer);
+                        leftRail.appendChild(outlinePlaceHolder);
+                        if (citeCard) leftRail.appendChild(citeCard);
+
+                        rightRail.appendChild(rightCard);
+                        rightRail.appendChild(infoBanner);
+                        rightRail.appendChild(metricsCard);
+                        if (sdgCard) rightRail.appendChild(sdgCard);
+                    }
+                }
+
+                syncResponsiveSlots();
+                if (typeof mqSingleCol.addEventListener === "function") {
+                    mqSingleCol.addEventListener("change", syncResponsiveSlots);
+                    mqNarrowDesk.addEventListener("change", syncResponsiveSlots);
+                } else if (typeof mqSingleCol.addListener === "function") {
+                    mqSingleCol.addListener(syncResponsiveSlots);
+                    mqNarrowDesk.addListener(syncResponsiveSlots);
+                }
+            })();
 
             if (initialViews === 0 && initialDownloads === 0) {
                 (function syncMetricsFromIssueToc(targetUrls, slugs, baseViews, baseDownloads) {
